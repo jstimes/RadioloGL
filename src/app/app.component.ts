@@ -15,6 +15,8 @@ interface UniformLocations {
   modelMatrix: WebGLUniformLocation;
   normalMatrix: WebGLUniformLocation
   sampler: WebGLUniformLocation;
+  contrastLower: WebGLUniformLocation;
+  contrastUpper: WebGLUniformLocation;
 }
 interface Program {
   program: WebGLProgram;
@@ -35,6 +37,8 @@ interface Point {
 }
 
 const VERTEX_SHADER_SOURCE = `
+  precision highp float;
+
   attribute vec4 aVertexPosition;
   attribute vec3 aVertexNormal;
   attribute vec2 aTextureCoord;
@@ -44,36 +48,41 @@ const VERTEX_SHADER_SOURCE = `
   uniform mat4 uModelMatrix;
   uniform mat4 uProjectionMatrix;
 
-  varying highp vec2 vTextureCoord;
-  varying highp vec3 vLighting;
+  varying vec2 vTextureCoord;
+  varying vec3 vLighting;
 
   void main() {
     gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
     vTextureCoord = aTextureCoord;
 
     // Apply lighting effect
-    highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
-    highp vec3 directionalLightColor = vec3(1, 1, 1);
-    highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
+    vec3 ambientLight = vec3(0.3, 0.3, 0.3);
+    vec3 directionalLightColor = vec3(1, 1, 1);
+    vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
 
-    highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
+    vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
 
-    highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+    float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
     vLighting = ambientLight + (directionalLightColor * directional);
   }
 `;
 
 const FRAGMENT_SHADER_SOURCE = `
-  varying highp vec3 vLighting;
-  varying highp vec2 vTextureCoord;
+  precision highp float;
+
+  varying vec3 vLighting;
+  varying vec2 vTextureCoord;
+
+  uniform float uContrastLower;
+  uniform float uContrastUpper;
 
   uniform sampler2D uSampler;
 
   void main() {
-    highp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+    vec4 texelColor = texture2D(uSampler, vTextureCoord);
 
-    highp float value = smoothstep(.85, .9, length(texelColor.rgb));
-    highp vec3 rgb = vec3(value);
+    float value = smoothstep(uContrastLower, uContrastUpper, length(texelColor.rgb));
+    vec3 rgb = vec3(value);
 
     gl_FragColor = vec4(rgb * vLighting, texelColor.a);
   }
@@ -97,6 +106,10 @@ export class AppComponent {
 
   textureIndex: number = 0;
   textures: WebGLTexture[] = [];
+
+  contrastLower = .85;
+  contrastUpper = .9;
+  delta = .005;
 
   ngOnInit() {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -130,6 +143,8 @@ export class AppComponent {
         modelMatrix: this.gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
         normalMatrix: this.gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
         sampler: this.gl.getUniformLocation(shaderProgram, 'uSampler'),
+        contrastLower: this.gl.getUniformLocation(shaderProgram, 'uContrastLower'),
+        contrastUpper: this.gl.getUniformLocation(shaderProgram, 'uContrastUpper'),
       },
     };
     this.camera = new Camera();
@@ -156,6 +171,21 @@ export class AppComponent {
 
   update(elapsedMs: number): void {
     this.camera.update(elapsedMs);
+
+    if (CONTROLS.isKeyDown(Key.C)) {
+      this.contrastLower -= this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.V)) {
+      this.contrastLower += this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.B)) {
+      this.contrastUpper -= this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.N)) {
+      this.contrastUpper += this.delta;
+    }
+    document.getElementById('contrast-lower').innerHTML = `Contrast lower: ${this.contrastLower}`;
+    document.getElementById('contrast-upper').innerHTML = `Contrast upper: ${this.contrastUpper}`;
 
     if (CONTROLS.isKeyDown(Key.W)) {
       if (this.textureIndex < this.textures.length - 1) {
@@ -301,6 +331,9 @@ export class AppComponent {
         this.program.uniformLocations.normalMatrix,
         false,
         normalMatrix);
+
+    gl.uniform1f(this.program.uniformLocations.contrastLower, this.contrastLower);
+    gl.uniform1f(this.program.uniformLocations.contrastUpper, this.contrastUpper);
   
     {
       const vertexCount = 6; //36
