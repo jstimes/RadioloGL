@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import {mat4, vec3, vec4} from './gl-matrix.js'
 import {loadTexture, initShaderProgram, loadShader} from './gl_utils';
 import { Camera } from 'src/app/camera';
+import { CONTROLS, Key } from 'src/app/controls';
 
 interface AttribLocations {
   vertexPosition: number;
@@ -71,12 +72,15 @@ const FRAGMENT_SHADER_SOURCE = `
   void main() {
     highp vec4 texelColor = texture2D(uSampler, vTextureCoord);
 
-    gl_FragColor = vec4(texelColor.rgb * vLighting, texelColor.a);
+    highp float value = smoothstep(.85, .9, length(texelColor.rgb));
+    highp vec3 rgb = vec3(value);
+
+    gl_FragColor = vec4(rgb * vLighting, texelColor.a);
   }
 `;
 
-const HEIGHT = 300;
-const WIDTH = 400;
+const HEIGHT = 800;
+const WIDTH = 1200;
 
 @Component({
   selector: 'app-root',
@@ -91,6 +95,7 @@ export class AppComponent {
   buffers: Buffers;
   camera: Camera;
 
+  textureIndex: number = 0;
   textures: WebGLTexture[] = [];
 
   ngOnInit() {
@@ -128,11 +133,15 @@ export class AppComponent {
       },
     };
     this.camera = new Camera();
-    const numTextures = 6;
+    const numTextures = 103;
     const start = 86;
     for (let i=0; i< numTextures; i++) {
-      const path = '000020_04_01'
-      this.textures.push(loadTexture(this.gl, `/assets/imgs/${path}/0${i+start}.png`));
+      const path = '000020_04_01';
+      let pre = '';
+      if (i + start < 100) {
+        pre = '0';
+      }
+      this.textures.push(loadTexture(this.gl, `/assets/imgs/${path}/${pre}${i+start}.png`));
     }
 
     this.gameLoop(0);
@@ -147,6 +156,18 @@ export class AppComponent {
 
   update(elapsedMs: number): void {
     this.camera.update(elapsedMs);
+
+    if (CONTROLS.isKeyDown(Key.W)) {
+      if (this.textureIndex < this.textures.length - 1) {
+        this.textureIndex++;
+      }
+    }
+    if (CONTROLS.isKeyDown(Key.S)) {
+      if (this.textureIndex > 0) {
+        this.textureIndex--;
+      }
+    }
+    document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex}`;
   }
 
   private getProjectionMatrix(): mat4 {
@@ -258,7 +279,7 @@ export class AppComponent {
       gl.activeTexture(gl.TEXTURE0);
 
       // Bind the texture to texture unit 0
-      gl.bindTexture(gl.TEXTURE_2D, this.textures[0]);
+      gl.bindTexture(gl.TEXTURE_2D, this.textures[this.textureIndex]);
   
     // Tell WebGL to use our program when drawing
     gl.useProgram(this.program.program);
@@ -282,7 +303,7 @@ export class AppComponent {
         normalMatrix);
   
     {
-      const vertexCount = 36;
+      const vertexCount = 6; //36
       const type = gl.UNSIGNED_SHORT;
       const offset = 0;
       // gl.LINE_STRIP
@@ -308,34 +329,34 @@ export class AppComponent {
       -1.0,  1.0,  1.0,
       
       // Back face
-      -1.0, -1.0, -1.0,
-      -1.0,  1.0, -1.0,
-       1.0,  1.0, -1.0,
-       1.0, -1.0, -1.0,
+      // -1.0, -1.0, -1.0,
+      // -1.0,  1.0, -1.0,
+      //  1.0,  1.0, -1.0,
+      //  1.0, -1.0, -1.0,
       
-      // Top face
-      -1.0,  1.0, -1.0,
-      -1.0,  1.0,  1.0,
-       1.0,  1.0,  1.0,
-       1.0,  1.0, -1.0,
+      // // Top face
+      // -1.0,  1.0, -1.0,
+      // -1.0,  1.0,  1.0,
+      //  1.0,  1.0,  1.0,
+      //  1.0,  1.0, -1.0,
       
-      // Bottom face
-      -1.0, -1.0, -1.0,
-       1.0, -1.0, -1.0,
-       1.0, -1.0,  1.0,
-      -1.0, -1.0,  1.0,
+      // // Bottom face
+      // -1.0, -1.0, -1.0,
+      //  1.0, -1.0, -1.0,
+      //  1.0, -1.0,  1.0,
+      // -1.0, -1.0,  1.0,
       
-      // Right face
-       1.0, -1.0, -1.0,
-       1.0,  1.0, -1.0,
-       1.0,  1.0,  1.0,
-       1.0, -1.0,  1.0,
+      // // Right face
+      //  1.0, -1.0, -1.0,
+      //  1.0,  1.0, -1.0,
+      //  1.0,  1.0,  1.0,
+      //  1.0, -1.0,  1.0,
       
-      // Left face
-      -1.0, -1.0, -1.0,
-      -1.0, -1.0,  1.0,
-      -1.0,  1.0,  1.0,
-      -1.0,  1.0, -1.0,
+      // // Left face
+      // -1.0, -1.0, -1.0,
+      // -1.0, -1.0,  1.0,
+      // -1.0,  1.0,  1.0,
+      // -1.0,  1.0, -1.0,
     ];
   
     // Now pass the list of positions into WebGL to build the
@@ -356,34 +377,34 @@ export class AppComponent {
         0.0,  0.0,  1.0,
   
       // Back
-        0.0,  0.0, -1.0,
-        0.0,  0.0, -1.0,
-        0.0,  0.0, -1.0,
-        0.0,  0.0, -1.0,
+      //   0.0,  0.0, -1.0,
+      //   0.0,  0.0, -1.0,
+      //   0.0,  0.0, -1.0,
+      //   0.0,  0.0, -1.0,
   
-      // Top
-        0.0,  1.0,  0.0,
-        0.0,  1.0,  0.0,
-        0.0,  1.0,  0.0,
-        0.0,  1.0,  0.0,
+      // // Top
+      //   0.0,  1.0,  0.0,
+      //   0.0,  1.0,  0.0,
+      //   0.0,  1.0,  0.0,
+      //   0.0,  1.0,  0.0,
   
-      // Bottom
-        0.0, -1.0,  0.0,
-        0.0, -1.0,  0.0,
-        0.0, -1.0,  0.0,
-        0.0, -1.0,  0.0,
+      // // Bottom
+      //   0.0, -1.0,  0.0,
+      //   0.0, -1.0,  0.0,
+      //   0.0, -1.0,  0.0,
+      //   0.0, -1.0,  0.0,
   
-      // Right
-        1.0,  0.0,  0.0,
-        1.0,  0.0,  0.0,
-        1.0,  0.0,  0.0,
-        1.0,  0.0,  0.0,
+      // // Right
+      //   1.0,  0.0,  0.0,
+      //   1.0,  0.0,  0.0,
+      //   1.0,  0.0,  0.0,
+      //   1.0,  0.0,  0.0,
   
-      // Left
-      -1.0,  0.0,  0.0,
-      -1.0,  0.0,  0.0,
-      -1.0,  0.0,  0.0,
-      -1.0,  0.0,  0.0
+      // // Left
+      // -1.0,  0.0,  0.0,
+      // -1.0,  0.0,  0.0,
+      // -1.0,  0.0,  0.0,
+      // -1.0,  0.0,  0.0
     ];
   
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals),
@@ -399,30 +420,30 @@ export class AppComponent {
       1.0,  1.0,
       0.0,  1.0,
       // Back
-      0.0,  0.0,
-      1.0,  0.0,
-      1.0,  1.0,
-      0.0,  1.0,
-      // Top
-      0.0,  0.0,
-      1.0,  0.0,
-      1.0,  1.0,
-      0.0,  1.0,
-      // Bottom
-      0.0,  0.0,
-      1.0,  0.0,
-      1.0,  1.0,
-      0.0,  1.0,
-      // Right
-      0.0,  0.0,
-      1.0,  0.0,
-      1.0,  1.0,
-      0.0,  1.0,
-      // Left
-      0.0,  0.0,
-      1.0,  0.0,
-      1.0,  1.0,
-      0.0,  1.0,
+      // 0.0,  0.0,
+      // 1.0,  0.0,
+      // 1.0,  1.0,
+      // 0.0,  1.0,
+      // // Top
+      // 0.0,  0.0,
+      // 1.0,  0.0,
+      // 1.0,  1.0,
+      // 0.0,  1.0,
+      // // Bottom
+      // 0.0,  0.0,
+      // 1.0,  0.0,
+      // 1.0,  1.0,
+      // 0.0,  1.0,
+      // // Right
+      // 0.0,  0.0,
+      // 1.0,  0.0,
+      // 1.0,  1.0,
+      // 0.0,  1.0,
+      // // Left
+      // 0.0,  0.0,
+      // 1.0,  0.0,
+      // 1.0,  1.0,
+      // 0.0,  1.0,
     ];
   
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates),
@@ -436,11 +457,11 @@ export class AppComponent {
     // position.
     const indices = [
       0,  1,  2,      0,  2,  3,    // front
-      4,  5,  6,      4,  6,  7,    // back
-      8,  9,  10,     8,  10, 11,   // top
-      12, 13, 14,     12, 14, 15,   // bottom
-      16, 17, 18,     16, 18, 19,   // right
-      20, 21, 22,     20, 22, 23,   // left
+      // 4,  5,  6,      4,  6,  7,    // back
+      // 8,  9,  10,     8,  10, 11,   // top
+      // 12, 13, 14,     12, 14, 15,   // bottom
+      // 16, 17, 18,     16, 18, 19,   // right
+      // 20, 21, 22,     20, 22, 23,   // left
     ];
 
     // Now send the element array to GL

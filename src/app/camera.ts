@@ -9,7 +9,7 @@ export class Camera {
     up = makeVec(0, 1, 0);
 
     constructor() {
-        this.cameraPosition = makeVec(0, 5, 5);
+        this.cameraPosition = makeVec(0, 0, 5);
         this.target = makeVec(0, 0, 0);
 
         CONTROLS.addAssignedControl(Key.J, "camera orbit left");
@@ -28,16 +28,16 @@ export class Camera {
 
     update(elapsedMs: number) {
         if (CONTROLS.isKeyDown(Key.J)) {
-            this.orbitLeft();
+            this.panLeft();
         }
         if (CONTROLS.isKeyDown(Key.L)) {
-            this.orbitRight();
+            this.panRight();
         }
         if (CONTROLS.isKeyDown(Key.I)) {
-            this.moveUp();
+            this.panUp();
         }
         if (CONTROLS.isKeyDown(Key.K)) {
-            this.moveDown();
+            this.panDown();
         }
         if (CONTROLS.isKeyDown(Key.O)) {
             this.zoomIn();
@@ -64,20 +64,36 @@ export class Camera {
             -this.ORBIT_ANGLE);
     }
 
-    MOVEMENT = 0.25;
-    moveUp() {
-        this.cameraPosition[1] += this.MOVEMENT;
+    PAN_DELTA = 0.025;
+    panUp() {
+        this.cameraPosition[1] += this.PAN_DELTA;
+        this.target[1] += this.PAN_DELTA;
     }
 
-    moveDown() {
-        this.cameraPosition[1] -= this.MOVEMENT;
+    panDown() {
+        this.cameraPosition[1] -= this.PAN_DELTA;
+        this.target[1] -= this.PAN_DELTA;
     }
 
+    panLeft() {
+        this.cameraPosition[0] -= this.PAN_DELTA;
+        this.target[0] -= this.PAN_DELTA;
+    }
+
+    panRight() {
+        this.cameraPosition[0] += this.PAN_DELTA;
+        this.target[0] += this.PAN_DELTA;
+    }
+
+    ZOOM_DELTA = 0.2;
     zoomIn() {
-        this.cameraPosition[2] -= this.MOVEMENT;
+        if (this.cameraPosition[2] <= 2) {
+            return;
+        }
+        this.cameraPosition[2] -= this.ZOOM_DELTA;
     }
 
     zoomOut() {
-        this.cameraPosition[2] += this.MOVEMENT;
+        this.cameraPosition[2] += this.ZOOM_DELTA;
     }
 }

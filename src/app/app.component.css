@@ -1,0 +1,18 @@
+#canvas {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+}
+
+#overlay {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    color: white;
+}
+
+#slice {
+    position: relative;
+    top: 12px;
+    left: 12px;
+}
