@@ -24,6 +24,12 @@ export class AppComponent {
   gl: WebGLRenderingContext;
   camera: Camera;
 
+  contrastLower = .85;
+  contrastUpper = .9;
+  delta = .005;
+
+  numTextures = 0;
+  textureIndex = 0;
   textureRenderables: TextureRenderable[] = [];
   standardRenderables: StandardRenderable[] = [];
 
@@ -44,14 +50,20 @@ export class AppComponent {
     STANDARD_PROGRAM.init(this.gl);
 
     this.camera = new Camera();
-
-    const stackImagePaths = this.getStackImagePaths();
-    const imageProcessor = new ImageProcessor();
-    imageProcessor.getMeshFromStack(this.gl, stackImagePaths).then(mesh => { this.standardRenderables.push(mesh); });
-
-    this.textureRenderables.push(new TextureRenderable(this.gl, stackImagePaths));
+    this.loadStack();
 
     this.gameLoop(0);
+  }
+
+  private async loadStack(): Promise<void> {
+    const stackImagePaths = this.getStackImagePaths();
+    this.numTextures = stackImagePaths.length;
+    const imageProcessor = new ImageProcessor();
+    stackImagePaths.forEach(async (imagePath: string) => {
+      this.textureRenderables.push(new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
+      const mesh = await imageProcessor.getMeshFromImage(this.gl, imagePath);
+      this.standardRenderables.push(mesh);
+    });
   }
 
   private gameLoop(elapsedMs: number): void {
@@ -62,26 +74,49 @@ export class AppComponent {
 
   update(elapsedMs: number): void {
     this.camera.update(elapsedMs);
-
     this.textureRenderables.forEach(tr => { tr.update(elapsedMs); });
-  }
 
+    if (CONTROLS.isKeyDown(Key.C)) {
+      this.contrastLower -= this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.V)) {
+      this.contrastLower += this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.B)) {
+      this.contrastUpper -= this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.N)) {
+      this.contrastUpper += this.delta;
+    }
+    if (CONTROLS.isKeyDown(Key.W)) {
+      if (this.textureIndex < this.numTextures - 1) {
+        this.textureIndex++;
+      }
+    }
+    if (CONTROLS.isKeyDown(Key.S)) {
+      if (this.textureIndex > 0) {
+        this.textureIndex--;
+      }
+    }
+    document.getElementById('contrast-lower').innerHTML = `Contrast lower: ${this.contrastLower}`;
+    document.getElementById('contrast-upper').innerHTML = `Contrast upper: ${this.contrastUpper}`;
+
+    document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex}`;
+  }
 
   private getStackImagePaths(): string[] {
     const imagePaths = [];
     const numTextures = 103;
     const start = 86;
-    // for (let i=0; i< numTextures; i++) {
-    let i = 0;
-    const path = '000020_04_01';
-    let pre = '';
-    if (i + start < 100) {
-      pre = '0';
+    for (let i = 0; i < numTextures; i++) {
+      const path = '000020_04_01';
+      let pre = '';
+      if (i + start < 100) {
+        pre = '0';
+      }
+      const imagePath = `/assets/imgs/${path}/${pre}${i + start}.png`;
+      imagePaths.push(imagePath);
     }
-    const imagePath = `/assets/imgs/${path}/${pre}${i + start}.png`;
-    imagePaths.push(imagePath);
-
-    // }
     return imagePaths;
   }
 
@@ -112,7 +147,8 @@ export class AppComponent {
     const viewMatrix = this.camera.getViewMatrix();
 
     gl.useProgram(TEXTURE_PROGRAM.program);
-
+    gl.uniform1f(TEXTURE_PROGRAM.uniformLocations.contrastLower, this.contrastLower);
+    gl.uniform1f(TEXTURE_PROGRAM.uniformLocations.contrastUpper, this.contrastUpper);
     gl.uniformMatrix4fv(
       TEXTURE_PROGRAM.uniformLocations.projectionMatrix,
       false,
@@ -121,7 +157,7 @@ export class AppComponent {
       TEXTURE_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    this.textureRenderables.forEach(tr => { tr.render(gl); });
+    this.textureRenderables[this.textureIndex].render(gl); // .forEach(tr => { tr.render(gl); });
 
     gl.useProgram(STANDARD_PROGRAM.program);
     gl.uniformMatrix4fv(
@@ -132,6 +168,8 @@ export class AppComponent {
       STANDARD_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    this.standardRenderables.forEach(sr => { sr.render(gl); });
+    if (this.textureIndex < this.standardRenderables.length) {
+      this.standardRenderables[this.textureIndex].render(gl); //.forEach(sr => { sr.render(gl); });
+    }
   }
 }

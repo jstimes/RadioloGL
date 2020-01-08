@@ -9,8 +9,8 @@ export class ImageProcessor {
 
     }
 
-    async getMeshFromStack(gl: WebGLRenderingContext, stackImagePaths: string[]): Promise<StandardRenderable> {
-        const triangles = await this.processImage(gl, stackImagePaths[0]);
+    async getMeshFromImage(gl: WebGLRenderingContext, stackImagePath: string): Promise<StandardRenderable> {
+        const triangles = await this.processImage(gl, stackImagePath);
         const renderable = new StandardRenderable();
         renderable.addTriangles(triangles);
         renderable.initBuffers(gl);
