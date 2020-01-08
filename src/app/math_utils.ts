@@ -1,4 +1,4 @@
-import {vec3, vec4, mat4} from './gl-matrix.js';
+import { vec3, vec4, mat4 } from './gl-matrix.js';
 
 export const EPSILON: number = .001;
 
@@ -13,7 +13,12 @@ export function makeVec4(x: number, y: number, z: number, w: number): vec4 {
     vec4.set(vector, x, y, z, w);
     return vector;
 }
-  
+
+export interface Point {
+    x: number;
+    y: number;
+}
+
 export function addVec(arr: number[], vec: vec3) {
     arr.push(vec[0]);
     arr.push(vec[1]);
@@ -41,38 +46,38 @@ export function sign(num: number) {
 
 export class Triangle {
     constructor(
-      public a: vec3, 
-      public b: vec3, 
-      public c: vec3) {}
-  
+        public a: vec3,
+        public b: vec3,
+        public c: vec3) { }
+
     getNormal(): vec3 {
-      const u = vec3.create();
-      const v = vec3.create();
-      vec3.sub(u, this.b, this.a);
-      vec3.sub(v, this.c, this.a);
-      return makeVec(
-        u[1] * v[2] - u[2] * v[1],
-        u[2] * v[0] - u[0] * v[2],
-        u[0] * v[1] - u[1] * v[0]);
+        const u = vec3.create();
+        const v = vec3.create();
+        vec3.sub(u, this.b, this.a);
+        vec3.sub(v, this.c, this.a);
+        return makeVec(
+            u[1] * v[2] - u[2] * v[1],
+            u[2] * v[0] - u[0] * v[2],
+            u[0] * v[1] - u[1] * v[0]);
     }
 
     clone() {
-      return new Triangle(vec3.clone(this.a), vec3.clone(this.b), vec3.clone(this.c));
+        return new Triangle(vec3.clone(this.a), vec3.clone(this.b), vec3.clone(this.c));
     }
 
     translate(trans: vec3): Triangle {
-      vec3.add(this.a, this.a, trans);
-      vec3.add(this.b, this.b, trans);
-      vec3.add(this.c, this.c, trans);
-      return this;
+        vec3.add(this.a, this.a, trans);
+        vec3.add(this.b, this.b, trans);
+        vec3.add(this.c, this.c, trans);
+        return this;
     }
 
     flip(): Triangle {
-      const copy = this.clone();
-      this.a = copy.c;
-      this.b = copy.b;
-      this.c = copy.a;
-      return this;
+        const copy = this.clone();
+        this.a = copy.c;
+        this.b = copy.b;
+        this.c = copy.a;
+        return this;
     }
 }
 
@@ -82,7 +87,7 @@ export class Square {
     c: vec3;
     d: vec3;
 
-    constructor({a, b, c, d}: {a: vec3; b: vec3; c: vec3; d: vec3}) {
+    constructor({ a, b, c, d }: { a: vec3; b: vec3; c: vec3; d: vec3 }) {
         this.a = a;
         this.b = b;
         this.c = c;

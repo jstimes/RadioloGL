@@ -1,8 +1,8 @@
 import {mat4, vec3, vec4} from './gl-matrix.js'
 import {Triangle, makeVec, addVec} from './math_utils';
-import {StandardProgram} from './programs';
+import {STANDARD_PROGRAM} from './standard_program';
 
-export class Renderable {
+export class StandardRenderable {
 
     buffers: {position: WebGLBuffer; normal: WebGLBuffer};
   
@@ -48,10 +48,10 @@ export class Renderable {
         };
     }
   
-    render(gl: WebGLRenderingContext, program: StandardProgram, modelMatrix: mat4) {
+    render(gl: WebGLRenderingContext) {
   
         // Projection & view matrices uniform is expected to be set already.
-  
+        const modelMatrix = mat4.create();
         const normalMatrix = mat4.create();
         mat4.invert(normalMatrix, modelMatrix);
         mat4.transpose(normalMatrix, normalMatrix);
@@ -67,14 +67,14 @@ export class Renderable {
             const offset = 0;         // how many bytes inside the buffer to start from
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
             gl.vertexAttribPointer(
-                program.attribLocations.vertexPosition,
+                STANDARD_PROGRAM.attribLocations.vertexPosition,
                 numComponents,
                 type,
                 normalize,
                 stride,
                 offset);
             gl.enableVertexAttribArray(
-            program.attribLocations.vertexPosition);
+                STANDARD_PROGRAM.attribLocations.vertexPosition);
         }
   
         // Tell WebGL how to pull out the normals from
@@ -87,28 +87,30 @@ export class Renderable {
             const offset = 0;
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal);
             gl.vertexAttribPointer(
-                program.attribLocations.vertexNormal,
+                STANDARD_PROGRAM.attribLocations.vertexNormal,
                 numComponents,
                 type,
                 normalize,
                 stride,
                 offset);
             gl.enableVertexAttribArray(
-                program.attribLocations.vertexNormal);
+                STANDARD_PROGRAM.attribLocations.vertexNormal);
         }
         
         // Tell WebGL to use our program when drawing
-        gl.useProgram(program.program);
+        gl.useProgram(STANDARD_PROGRAM.program);
         
         // Set the shader uniforms
         gl.uniformMatrix4fv(
-            program.uniformLocations.modelMatrix,
+            STANDARD_PROGRAM.uniformLocations.modelMatrix,
             false,
             modelMatrix);
         gl.uniformMatrix4fv(
-            program.uniformLocations.normalMatrix,
+            STANDARD_PROGRAM.uniformLocations.normalMatrix,
             false,
             normalMatrix);
+
+        gl.uniform4fv(STANDARD_PROGRAM.uniformLocations.color, [1, 0, 0, 1]);
         
         {
             const vertexCount = this.getPositions().length / 3;

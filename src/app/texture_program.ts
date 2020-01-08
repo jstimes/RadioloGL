@@ -1,12 +1,6 @@
 
 import {loadTexture, initShaderProgram, loadShader} from './gl_utils';
 
-export class StandardProgram {
-
-    program: WebGLProgram;
-    attribLocations: AttribLocations;
-    uniformLocations: UniformLocations;
-}
 
 const VERTEX_SHADER_SOURCE = `
   precision highp float;
