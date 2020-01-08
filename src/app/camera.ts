@@ -9,7 +9,7 @@ export class Camera {
     up = makeVec(0, 1, 0);
 
     constructor() {
-        this.cameraPosition = makeVec(0, 12, 30);
+        this.cameraPosition = makeVec(0, 5, 5);
         this.target = makeVec(0, 0, 0);
 
         CONTROLS.addAssignedControl(Key.J, "camera orbit left");

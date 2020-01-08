@@ -6,12 +6,14 @@ import { Camera } from 'src/app/camera';
 interface AttribLocations {
   vertexPosition: number;
   vertexNormal: number;
+  textureCoord: number;
 }
 interface UniformLocations {
   projectionMatrix: WebGLUniformLocation;
   viewMatrix: WebGLUniformLocation;
   modelMatrix: WebGLUniformLocation;
-  normalMatrix: WebGLUniformLocation;
+  normalMatrix: WebGLUniformLocation
+  sampler: WebGLUniformLocation;
 }
 interface Program {
   program: WebGLProgram;
@@ -21,7 +23,9 @@ interface Program {
 
 interface Buffers {
   position: WebGLBuffer;
+  textureCoord: WebGLBuffer;
   normal: WebGLBuffer;
+  indices: WebGLBuffer;
 }
 
 interface Point {
@@ -32,16 +36,19 @@ interface Point {
 const VERTEX_SHADER_SOURCE = `
   attribute vec4 aVertexPosition;
   attribute vec3 aVertexNormal;
+  attribute vec2 aTextureCoord;
 
   uniform mat4 uNormalMatrix;
   uniform mat4 uViewMatrix;
   uniform mat4 uModelMatrix;
   uniform mat4 uProjectionMatrix;
 
+  varying highp vec2 vTextureCoord;
   varying highp vec3 vLighting;
 
   void main() {
     gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
+    vTextureCoord = aTextureCoord;
 
     // Apply lighting effect
     highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
@@ -57,12 +64,14 @@ const VERTEX_SHADER_SOURCE = `
 
 const FRAGMENT_SHADER_SOURCE = `
   varying highp vec3 vLighting;
+  varying highp vec2 vTextureCoord;
 
   uniform sampler2D uSampler;
 
   void main() {
-    highp vec4 vColor = vec4(1.0, 0.0, 0.0, 1.0);
-    gl_FragColor = vec4(vColor.rgb * vLighting, vColor.a);
+    highp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+
+    gl_FragColor = vec4(texelColor.rgb * vLighting, texelColor.a);
   }
 `;
 
@@ -81,13 +90,13 @@ export class AppComponent {
   program: Program;
   buffers: Buffers;
   camera: Camera;
-  mesh: Mesh;
+
+  textures: WebGLTexture[] = [];
 
   ngOnInit() {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
     this.canvas.setAttribute('width', `${WIDTH}`);
     this.canvas.setAttribute('height', `${HEIGHT}`);
-    this.canvas.addEventListener('mousedown', this.onMouseDown);
     
     this.gl = this.canvas.getContext('webgl');
   
@@ -108,16 +117,23 @@ export class AppComponent {
       attribLocations: {
         vertexPosition: this.gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
         vertexNormal: this.gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+        textureCoord: this.gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
       },
       uniformLocations: {
         projectionMatrix: this.gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
         viewMatrix: this.gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
         modelMatrix: this.gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
         normalMatrix: this.gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
+        sampler: this.gl.getUniformLocation(shaderProgram, 'uSampler'),
       },
     };
     this.camera = new Camera();
-    this.mesh = new Mesh();
+    const numTextures = 6;
+    const start = 86;
+    for (let i=0; i< numTextures; i++) {
+      const path = '000020_04_01'
+      this.textures.push(loadTexture(this.gl, `/assets/imgs/${path}/0${i+start}.png`));
+    }
 
     this.gameLoop(0);
   }
@@ -178,49 +194,71 @@ export class AppComponent {
     const viewMatrix = this.camera.getViewMatrix();
 
     const normalMatrix = mat4.create();
+    // TODO - modelView?
     mat4.invert(normalMatrix, modeMatrix);
     mat4.transpose(normalMatrix, normalMatrix);
 
     // Tell WebGL how to pull out the positions from the position
-    // buffer into the vertexPosition attribute.
-    {
-      const numComponents = 3;  // pull out 3 values per iteration
-      const type = gl.FLOAT;    // the data in the buffer is 32bit floats
-      const normalize = false;  // don't normalize
-      const stride = 0;         // how many bytes to get from one set of values to the next
-                                // 0 = use type and numComponents above
-      const offset = 0;         // how many bytes inside the buffer to start from
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
-      gl.vertexAttribPointer(
+      // buffer into the vertexPosition attribute.
+      {
+        const numComponents = 3;  // pull out 2 values per iteration
+        const type = gl.FLOAT;    // the data in the buffer is 32bit floats
+        const normalize = false;  // don't normalize
+        const stride = 0;         // how many bytes to get from one set of values to the next
+                                  // 0 = use type and numComponents above
+        const offset = 0;         // how many bytes inside the buffer to start from
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+        gl.vertexAttribPointer(
           this.program.attribLocations.vertexPosition,
-          numComponents,
-          type,
-          normalize,
-          stride,
-          offset);
-      gl.enableVertexAttribArray(
-        this.program.attribLocations.vertexPosition);
-    }
+            numComponents,
+            type,
+            normalize,
+            stride,
+            offset);
+        gl.enableVertexAttribArray(
+          this.program.attribLocations.vertexPosition);
+      }
 
-    // Tell WebGL how to pull out the normals from
-    // the normal buffer into the vertexNormal attribute.
-    {
-      const numComponents = 3;
-      const type = gl.FLOAT;
-      const normalize = false;
-      const stride = 0;
-      const offset = 0;
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal);
-      gl.vertexAttribPointer(
+      // Tell WebGL how to pull out the normals from
+      // the normal buffer into the vertexNormal attribute.
+      {
+        const numComponents = 3;
+        const type = gl.FLOAT;
+        const normalize = false;
+        const stride = 0;
+        const offset = 0;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal);
+        gl.vertexAttribPointer(
           this.program.attribLocations.vertexNormal,
-          numComponents,
-          type,
-          normalize,
-          stride,
-          offset);
-      gl.enableVertexAttribArray(
+            numComponents,
+            type,
+            normalize,
+            stride,
+            offset);
+        gl.enableVertexAttribArray(
           this.program.attribLocations.vertexNormal);
-    }
+      }
+
+      // tell webgl how to pull out the texture coordinates from buffer
+      {
+          const num = 2; // every coordinate composed of 2 values
+          const type = gl.FLOAT; // the data in the buffer is 32 bit float
+          const normalize = false; // don't normalize
+          const stride = 0; // how many bytes to get from one set to the next
+          const offset = 0; // how many bytes inside the buffer to start from
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.textureCoord);
+          gl.vertexAttribPointer(this.program.attribLocations.textureCoord, num, type, normalize, stride, offset);
+          gl.enableVertexAttribArray(this.program.attribLocations.textureCoord);
+      }
+
+      // Tell WebGL which indices to use to index the vertices
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.indices);
+
+      // Tell WebGL we want to affect texture unit 0
+      gl.activeTexture(gl.TEXTURE0);
+
+      // Bind the texture to texture unit 0
+      gl.bindTexture(gl.TEXTURE_2D, this.textures[0]);
   
     // Tell WebGL to use our program when drawing
     gl.useProgram(this.program.program);
@@ -244,38 +282,179 @@ export class AppComponent {
         normalMatrix);
   
     {
-      const vertexCount = this.mesh.positions.length / 3;
+      const vertexCount = 36;
       const type = gl.UNSIGNED_SHORT;
       const offset = 0;
       // gl.LINE_STRIP
-      gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
+      gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
     }
   }
 
   private initBuffers() {
     const gl = this.gl;
-    this.mesh.init();
-
+    // Create a buffer for the square's positions.
     const positionBuffer = gl.createBuffer();
+  
+    // Select the positionBuffer as the one to apply buffer
+    // operations to from here out
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  
+    // Cube
+    const positions = [
+      // Front face
+      -1.0, -1.0,  1.0,
+       1.0, -1.0,  1.0,
+       1.0,  1.0,  1.0,
+      -1.0,  1.0,  1.0,
+      
+      // Back face
+      -1.0, -1.0, -1.0,
+      -1.0,  1.0, -1.0,
+       1.0,  1.0, -1.0,
+       1.0, -1.0, -1.0,
+      
+      // Top face
+      -1.0,  1.0, -1.0,
+      -1.0,  1.0,  1.0,
+       1.0,  1.0,  1.0,
+       1.0,  1.0, -1.0,
+      
+      // Bottom face
+      -1.0, -1.0, -1.0,
+       1.0, -1.0, -1.0,
+       1.0, -1.0,  1.0,
+      -1.0, -1.0,  1.0,
+      
+      // Right face
+       1.0, -1.0, -1.0,
+       1.0,  1.0, -1.0,
+       1.0,  1.0,  1.0,
+       1.0, -1.0,  1.0,
+      
+      // Left face
+      -1.0, -1.0, -1.0,
+      -1.0, -1.0,  1.0,
+      -1.0,  1.0,  1.0,
+      -1.0,  1.0, -1.0,
+    ];
+  
+    // Now pass the list of positions into WebGL to build the
+    // shape. We do this by creating a Float32Array from the
+    // JavaScript array, then use it to fill the current buffer.
     gl.bufferData(gl.ARRAY_BUFFER,
-                  new Float32Array(this.mesh.positions),
+                  new Float32Array(positions),
                   gl.STATIC_DRAW);
 
     const normalBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.mesh.normals),
-                  gl.STATIC_DRAW);
   
-    this.buffers = {
+    const vertexNormals = [
+      // Front
+        0.0,  0.0,  1.0,
+        0.0,  0.0,  1.0,
+        0.0,  0.0,  1.0,
+        0.0,  0.0,  1.0,
+  
+      // Back
+        0.0,  0.0, -1.0,
+        0.0,  0.0, -1.0,
+        0.0,  0.0, -1.0,
+        0.0,  0.0, -1.0,
+  
+      // Top
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+        0.0,  1.0,  0.0,
+  
+      // Bottom
+        0.0, -1.0,  0.0,
+        0.0, -1.0,  0.0,
+        0.0, -1.0,  0.0,
+        0.0, -1.0,  0.0,
+  
+      // Right
+        1.0,  0.0,  0.0,
+        1.0,  0.0,  0.0,
+        1.0,  0.0,  0.0,
+        1.0,  0.0,  0.0,
+  
+      // Left
+      -1.0,  0.0,  0.0,
+      -1.0,  0.0,  0.0,
+      -1.0,  0.0,  0.0,
+      -1.0,  0.0,  0.0
+    ];
+  
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals),
+                  gl.STATIC_DRAW);
+
+    const textureCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+  
+    const textureCoordinates = [
+      // Front
+      0.0,  0.0,
+      1.0,  0.0,
+      1.0,  1.0,
+      0.0,  1.0,
+      // Back
+      0.0,  0.0,
+      1.0,  0.0,
+      1.0,  1.0,
+      0.0,  1.0,
+      // Top
+      0.0,  0.0,
+      1.0,  0.0,
+      1.0,  1.0,
+      0.0,  1.0,
+      // Bottom
+      0.0,  0.0,
+      1.0,  0.0,
+      1.0,  1.0,
+      0.0,  1.0,
+      // Right
+      0.0,  0.0,
+      1.0,  0.0,
+      1.0,  1.0,
+      0.0,  1.0,
+      // Left
+      0.0,  0.0,
+      1.0,  0.0,
+      1.0,  1.0,
+      0.0,  1.0,
+    ];
+  
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates),
+                  gl.STATIC_DRAW);
+
+    const indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+    // This array defines each face as two triangles, using the
+    // indices into the vertex array to specify each triangle's
+    // position.
+    const indices = [
+      0,  1,  2,      0,  2,  3,    // front
+      4,  5,  6,      4,  6,  7,    // back
+      8,  9,  10,     8,  10, 11,   // top
+      12, 13, 14,     12, 14, 15,   // bottom
+      16, 17, 18,     16, 18, 19,   // right
+      20, 21, 22,     20, 22, 23,   // left
+    ];
+
+    // Now send the element array to GL
+
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+        new Uint16Array(indices), gl.STATIC_DRAW);
+  
+    this.buffers =  {
       position: positionBuffer,
       normal: normalBuffer,
+      textureCoord: textureCoordBuffer,
+      indices: indexBuffer,
     };
   }
-
-  private onMouseDown = (e: MouseEvent) => {
-    this.mesh.click(e, this.getProjectionMatrix());
-  };
 }
 
 function makeVec(x: number, y: number, z: number): vec3 {
@@ -297,165 +476,6 @@ interface Square {
   topRight: vec3;
   midPt: vec3;
   isPartiallyElevated: boolean;
-}
-
-class Mesh {
-  readonly gridSize = 32;
-  readonly squareWidth = 0.5;
-  readonly squareHeight = 0.5;
-  readonly START_Z = -20.0;
-
-  squares: Square[] = [];
-
-  positions: number[] = [];
-  normals: number[] = [];
-
-  constructor() {
-    const normal = makeVec(0, 0, 1.0);
-    const xStart = -(this.gridSize / 2 * this.squareWidth);
-    const yStart = -(this.gridSize / 2 * this.squareHeight);
-
-    for (let y=0; y<this.gridSize; y++) {
-      for (let x=0; x<this.gridSize; x++) {
-        const topLeft = makeVec(
-          x * this.squareWidth + xStart, 
-          y * this.squareHeight + this.squareHeight + yStart, 
-          this.START_Z);
-        const bottomLeft = makeVec(
-          x * this.squareWidth + xStart, 
-          y * this.squareHeight + yStart, 
-          this.START_Z);
-        const topRight = makeVec(
-          x * this.squareWidth + this.squareWidth + xStart, 
-          y * this.squareHeight + this.squareHeight + yStart, 
-          this.START_Z);
-        const bottomRight = makeVec(
-          x * this.squareWidth + this.squareWidth + xStart,
-          y * this.squareHeight + yStart, 
-          this.START_Z);
-        const midPt = makeVec(
-          bottomLeft[0] + this.squareWidth / 2, 
-          bottomLeft[1] + this.squareHeight / 2, 
-          this.START_Z);
-
-        const square: Square = {
-          topLeft, 
-          bottomLeft, 
-          bottomRight, 
-          topRight, 
-          midPt,
-          isPartiallyElevated: false,
-        };
-        this.squares.push(square);
-      }
-    }
-  }
-
-  // Thanks Anton
-  // http://antongerdelan.net/opengl/raycasting.html
-  click(e: MouseEvent, projectionMatrix: mat4) {
-    // Mouse event is in viewport coordinates.
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-
-    // First, get Normalized device coordinates ([-1:1], [-1:1], [-1:1])
-    const x = (2.0 * mouseX) / WIDTH - 1.0;
-    const y = 1.0 - (2.0 * mouseY) / HEIGHT;
-    const z = 1.0;
-    const ndcRay = makeVec(x, y, z);
-    console.log("NDC Ray: " + vec3.str(ndcRay));
-
-    // Convert to homogeneous clip coordinates:
-    const rayClip = vec4.create();
-    rayClip[0] = x;
-    rayClip[1] = y;
-    rayClip[2] = -1.0;
-    rayClip[3] = 1.0;
-
-    // Then camera coordinates:
-    const inverseProjection = mat4.create();
-    mat4.invert(inverseProjection, projectionMatrix);
-    const rayEye = vec4.create();
-    vec4.transformMat4(rayEye, rayClip, inverseProjection);
-
-    // Finally, world coords.
-    // rayWorld = inverse(viewMatrix) * rayEye
-    const rayWorld = makeVec(rayEye[0], rayEye[1], rayEye[3]);
-    vec3.normalize(rayWorld, rayWorld);
-
-    console.log("Ray world: " + vec3.str(rayWorld));
-
-    const randomSquareIndex = Math.floor(Math.random() * this.squares.length);
-    this.elevateSquareAtIndex(randomSquareIndex);
-  }
-
-  ELEVATION_DELTA = .5;
-  elevateSquareAtIndex(index: number) {
-    const square = this.squares[index];
-    square.topLeft[2] += this.ELEVATION_DELTA;
-    square.bottomLeft[2] += this.ELEVATION_DELTA;
-    square.bottomRight[2] += this.ELEVATION_DELTA;
-    square.topRight[2] += this.ELEVATION_DELTA;
-    square.midPt[2] += this.ELEVATION_DELTA;
-
-    const rightSquare = this.squares[index + 1];
-    rightSquare.bottomLeft[2] += this.ELEVATION_DELTA;
-    rightSquare.topLeft[2] += this.ELEVATION_DELTA;
-    rightSquare.midPt[2] += this.ELEVATION_DELTA / 2;
-
-    const leftSquare = this.squares[index - 1];
-    leftSquare.topRight[2] += this.ELEVATION_DELTA;
-    leftSquare.bottomRight[2] += this.ELEVATION_DELTA;
-    leftSquare.midPt[2] += this.ELEVATION_DELTA / 2;
-
-    const topSquare = this.squares[index + this.gridSize];
-    topSquare.bottomLeft[2] += this.ELEVATION_DELTA;
-    topSquare.bottomRight[2] += this.ELEVATION_DELTA;
-    topSquare.midPt[2] += this.ELEVATION_DELTA / 2;
-
-    const bottomSquare = this.squares[index - this.gridSize];
-    bottomSquare.topLeft[2] += this.ELEVATION_DELTA;
-    bottomSquare.topRight[2] += this.ELEVATION_DELTA;
-    bottomSquare.midPt[2] += this.ELEVATION_DELTA / 2;
-
-    const topLeftSquare = this.squares[index + this.gridSize - 1];
-    topLeftSquare.bottomRight[2] += this.ELEVATION_DELTA;
-
-    const topRightSquare = this.squares[index + this.gridSize + 1];
-    topRightSquare.bottomLeft[2] += this.ELEVATION_DELTA;
-
-    const bottomLeftSquare = this.squares[index - this.gridSize - 1];
-    bottomLeftSquare.topRight[2] += this.ELEVATION_DELTA;
-
-    const bottomRightSquare = this.squares[index - this.gridSize + 1];
-    bottomRightSquare.topLeft[2] += this.ELEVATION_DELTA;
-  }
-
-  init() {
-    this.positions = [];
-    this.normals = [];
-    const triangles: Triangle[] = [];
-    for (let square of this.squares) {
-      const triTop = new Triangle(square.topLeft, square.midPt, square.topRight);
-      const triLeft = new Triangle(square.topLeft, square.bottomLeft, square.midPt);
-      const triBottom = new Triangle(square.bottomLeft, square.bottomRight, square.midPt);
-      const triRight = new Triangle(square.midPt, square.bottomRight, square.topRight);
-      triangles.push(triTop);
-      triangles.push(triLeft);
-      triangles.push(triBottom);
-      triangles.push(triRight);
-    }
-    for (let triangle of triangles) {
-      const triNormal = triangle.getNormal();
-      vec3.normalize(triNormal, triNormal);
-      addVec(this.positions, triangle.a);
-      addVec(this.positions, triangle.b);
-      addVec(this.positions, triangle.c);
-      addVec(this.normals, triNormal);
-      addVec(this.normals, triNormal);
-      addVec(this.normals, triNormal);
-    }
-  }
 }
 
 class Triangle {
