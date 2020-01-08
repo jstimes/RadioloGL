@@ -28,6 +28,7 @@ export class AppComponent {
   contrastUpper = .9;
   delta = .005;
 
+  isShowingOverlay: boolean = false;
   numTextures = 0;
   textureIndex = 0;
   textureRenderables: TextureRenderable[] = [];
@@ -100,8 +101,8 @@ export class AppComponent {
     }
     document.getElementById('contrast-lower').innerHTML = `Contrast lower: ${this.contrastLower}`;
     document.getElementById('contrast-upper').innerHTML = `Contrast upper: ${this.contrastUpper}`;
-
     document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex}`;
+    this.isShowingOverlay = (document.getElementById('show-overlay') as HTMLInputElement).checked;
   }
 
   private getStackImagePaths(): string[] {
@@ -168,7 +169,7 @@ export class AppComponent {
       STANDARD_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    if (this.textureIndex < this.standardRenderables.length) {
+    if (this.isShowingOverlay && this.textureIndex < this.standardRenderables.length) {
       this.standardRenderables[this.textureIndex].render(gl); //.forEach(sr => { sr.render(gl); });
     }
   }

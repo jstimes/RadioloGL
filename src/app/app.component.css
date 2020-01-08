@@ -10,3 +10,9 @@
     left: 16px;
     color: white;
 }
+
+#controls {
+    position: absolute;
+    top: 816px;
+    left: 16px;
+}
