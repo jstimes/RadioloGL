@@ -3,26 +3,9 @@ import {mat4, vec3, vec4} from './gl-matrix.js'
 import {loadTexture, initShaderProgram, loadShader} from './gl_utils';
 import { Camera } from 'src/app/camera';
 import { CONTROLS, Key } from 'src/app/controls';
-
-interface AttribLocations {
-  vertexPosition: number;
-  vertexNormal: number;
-  textureCoord: number;
-}
-interface UniformLocations {
-  projectionMatrix: WebGLUniformLocation;
-  viewMatrix: WebGLUniformLocation;
-  modelMatrix: WebGLUniformLocation;
-  normalMatrix: WebGLUniformLocation
-  sampler: WebGLUniformLocation;
-  contrastLower: WebGLUniformLocation;
-  contrastUpper: WebGLUniformLocation;
-}
-interface Program {
-  program: WebGLProgram;
-  attribLocations: AttribLocations;
-  uniformLocations: UniformLocations;
-}
+import {Triangle, makeVec, addVec} from './math_utils';
+import {Renderable} from './renderable';
+import { TEXTURE_PROGRAM } from 'src/app/programs';
 
 interface Buffers {
   position: WebGLBuffer;
@@ -36,58 +19,6 @@ interface Point {
   y: number;
 }
 
-const VERTEX_SHADER_SOURCE = `
-  precision highp float;
-
-  attribute vec4 aVertexPosition;
-  attribute vec3 aVertexNormal;
-  attribute vec2 aTextureCoord;
-
-  uniform mat4 uNormalMatrix;
-  uniform mat4 uViewMatrix;
-  uniform mat4 uModelMatrix;
-  uniform mat4 uProjectionMatrix;
-
-  varying vec2 vTextureCoord;
-  varying vec3 vLighting;
-
-  void main() {
-    gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
-    vTextureCoord = aTextureCoord;
-
-    // Apply lighting effect
-    vec3 ambientLight = vec3(0.3, 0.3, 0.3);
-    vec3 directionalLightColor = vec3(1, 1, 1);
-    vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
-
-    vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
-
-    float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
-    vLighting = ambientLight + (directionalLightColor * directional);
-  }
-`;
-
-const FRAGMENT_SHADER_SOURCE = `
-  precision highp float;
-
-  varying vec3 vLighting;
-  varying vec2 vTextureCoord;
-
-  uniform float uContrastLower;
-  uniform float uContrastUpper;
-
-  uniform sampler2D uSampler;
-
-  void main() {
-    vec4 texelColor = texture2D(uSampler, vTextureCoord);
-
-    float value = smoothstep(uContrastLower, uContrastUpper, length(texelColor.rgb));
-    vec3 rgb = vec3(value);
-
-    gl_FragColor = vec4(rgb * vLighting, texelColor.a);
-  }
-`;
-
 const HEIGHT = 800;
 const WIDTH = 1200;
 
@@ -100,12 +31,12 @@ export class AppComponent {
   title = 'CtTs';
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
-  program: Program;
   buffers: Buffers;
   camera: Camera;
 
   textureIndex: number = 0;
   textures: WebGLTexture[] = [];
+  renderables: Renderable[] = [];
 
   contrastLower = .85;
   contrastUpper = .9;
@@ -129,37 +60,103 @@ export class AppComponent {
     // Clear the color buffer with specified clear color
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-    const shaderProgram = initShaderProgram(this.gl, VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-    this.program = {
-      program: shaderProgram,
-      attribLocations: {
-        vertexPosition: this.gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-        vertexNormal: this.gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
-        textureCoord: this.gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
-      },
-      uniformLocations: {
-        projectionMatrix: this.gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-        viewMatrix: this.gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
-        modelMatrix: this.gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
-        normalMatrix: this.gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-        sampler: this.gl.getUniformLocation(shaderProgram, 'uSampler'),
-        contrastLower: this.gl.getUniformLocation(shaderProgram, 'uContrastLower'),
-        contrastUpper: this.gl.getUniformLocation(shaderProgram, 'uContrastUpper'),
-      },
-    };
+    TEXTURE_PROGRAM.init(this.gl);
+
     this.camera = new Camera();
     const numTextures = 103;
     const start = 86;
-    for (let i=0; i< numTextures; i++) {
+    // for (let i=0; i< numTextures; i++) {
+      let i =0;
       const path = '000020_04_01';
       let pre = '';
       if (i + start < 100) {
         pre = '0';
       }
-      this.textures.push(loadTexture(this.gl, `/assets/imgs/${path}/${pre}${i+start}.png`));
-    }
+      const imagePath = `/assets/imgs/${path}/${pre}${i+start}.png`;
+      this.processImage(imagePath);
+      this.textures.push(loadTexture(this.gl, imagePath));
+    // }
 
     this.gameLoop(0);
+  }
+
+  processImage(src: string) {
+    const gl = this.gl;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      const delta = 4;
+      const cells = image.width / delta;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width;
+      canvas.height = image.height;
+      canvas.getContext('2d').drawImage(image, 0, 0, image.width, image.height);
+
+      const grid: boolean[][] = [];
+      for (let y=0; y<cells; y++) {
+        const row = [];
+        for (let x=0; x<cells; x++) {
+          const pt = {x: x * delta, y: y * delta};
+
+          const rgba = canvas.getContext('2d').getImageData(pt.x, pt.y, 1, 1).data;
+          const rgb = [rgba[0] / 256, rgba[1] / 256, rgba[2] / 256];
+          const isAboveThreshold = Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) > .85;
+          row.push(isAboveThreshold);
+          
+        }
+        grid.push(row);
+      }
+
+      const z = 1.0;
+      const toGlPt = (imagePt: Point): vec3 => {
+        return makeVec(imagePt.x * (2 / image.width) - 1, imagePt.y * (2 / image.height), z);
+      };
+      const triangles: Triangle[] = [];
+      for (let y=1; y<cells; y++) {
+        for (let x=1; x<cells; x++) {
+          const isPtAbove = grid[y][x];
+          const isLeftPtAbove = grid[y][x-1];
+          const isUpPtAbove = grid[y-1][x];
+          const isLeftUpPtAbove = grid[y-1][x-1];
+
+          const imagePt = {x: x * delta, y: y * delta};
+          const imagePtLeft = {x: (x-1)*delta, y: y * delta};
+          const imagePtUp = {x: x*delta, y: (y-1) * delta};
+          const imagePtLeftUp = {x: (x-1)*delta, y: (y-1) * delta};
+
+          const glPt = toGlPt(imagePt);
+          const glLeftPt = toGlPt(imagePtLeft);
+          const glUpPt = toGlPt(imagePtUp);
+          const glLeftUpPt = toGlPt(imagePtLeftUp);
+
+          if (!isPtAbove && !isLeftPtAbove && !isUpPtAbove && !isLeftPtAbove) {
+            continue;
+          }
+          if (isPtAbove && isLeftPtAbove && isUpPtAbove && isLeftPtAbove) {
+            const upperLeft = new Triangle(glLeftUpPt, glLeftPt, glUpPt);
+            const lowerRight = new Triangle(glLeftPt, glPt, glUpPt);
+            triangles.push(upperLeft);
+            triangles.push(lowerRight);
+          }
+        }
+      }
+      const renderable = new Renderable();
+      renderable.addTriangles(triangles);
+      renderable.initBuffers(this.gl);
+      this.renderables.push(renderable);
+
+      const div = document.createElement("div");
+      const rows = grid.map((row: boolean[]) => {
+        return row.map(b => b ? '1' : '0').join('');
+      });
+      const str = rows.join('\n');
+      div.innerHTML = str;
+      document.body.appendChild(div);
+      console.log("done");
+    };
+
+    image.src = src;
   }
 
   private gameLoop(elapsedMs: number): void {
@@ -260,14 +257,14 @@ export class AppComponent {
         const offset = 0;         // how many bytes inside the buffer to start from
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
         gl.vertexAttribPointer(
-          this.program.attribLocations.vertexPosition,
+          TEXTURE_PROGRAM.attribLocations.vertexPosition,
             numComponents,
             type,
             normalize,
             stride,
             offset);
         gl.enableVertexAttribArray(
-          this.program.attribLocations.vertexPosition);
+          TEXTURE_PROGRAM.attribLocations.vertexPosition);
       }
 
       // Tell WebGL how to pull out the normals from
@@ -280,14 +277,14 @@ export class AppComponent {
         const offset = 0;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal);
         gl.vertexAttribPointer(
-          this.program.attribLocations.vertexNormal,
+          TEXTURE_PROGRAM.attribLocations.vertexNormal,
             numComponents,
             type,
             normalize,
             stride,
             offset);
         gl.enableVertexAttribArray(
-          this.program.attribLocations.vertexNormal);
+          TEXTURE_PROGRAM.attribLocations.vertexNormal);
       }
 
       // tell webgl how to pull out the texture coordinates from buffer
@@ -298,8 +295,8 @@ export class AppComponent {
           const stride = 0; // how many bytes to get from one set to the next
           const offset = 0; // how many bytes inside the buffer to start from
           gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.textureCoord);
-          gl.vertexAttribPointer(this.program.attribLocations.textureCoord, num, type, normalize, stride, offset);
-          gl.enableVertexAttribArray(this.program.attribLocations.textureCoord);
+          gl.vertexAttribPointer(TEXTURE_PROGRAM.attribLocations.textureCoord, num, type, normalize, stride, offset);
+          gl.enableVertexAttribArray(TEXTURE_PROGRAM.attribLocations.textureCoord);
       }
 
       // Tell WebGL which indices to use to index the vertices
@@ -312,28 +309,28 @@ export class AppComponent {
       gl.bindTexture(gl.TEXTURE_2D, this.textures[this.textureIndex]);
   
     // Tell WebGL to use our program when drawing
-    gl.useProgram(this.program.program);
+    gl.useProgram(TEXTURE_PROGRAM.program);
   
     // Set the shader uniforms
     gl.uniformMatrix4fv(
-        this.program.uniformLocations.projectionMatrix,
+      TEXTURE_PROGRAM.uniformLocations.projectionMatrix,
         false,
         projectionMatrix);
     gl.uniformMatrix4fv(
-        this.program.uniformLocations.modelMatrix,
+      TEXTURE_PROGRAM.uniformLocations.modelMatrix,
         false,
         modeMatrix);
     gl.uniformMatrix4fv(
-        this.program.uniformLocations.viewMatrix,
+      TEXTURE_PROGRAM.uniformLocations.viewMatrix,
         false,
         viewMatrix);
     gl.uniformMatrix4fv(
-        this.program.uniformLocations.normalMatrix,
+      TEXTURE_PROGRAM.uniformLocations.normalMatrix,
         false,
         normalMatrix);
 
-    gl.uniform1f(this.program.uniformLocations.contrastLower, this.contrastLower);
-    gl.uniform1f(this.program.uniformLocations.contrastUpper, this.contrastUpper);
+    gl.uniform1f(TEXTURE_PROGRAM.uniformLocations.contrastLower, this.contrastLower);
+    gl.uniform1f(TEXTURE_PROGRAM.uniformLocations.contrastUpper, this.contrastUpper);
   
     {
       const vertexCount = 6; //36
@@ -342,6 +339,8 @@ export class AppComponent {
       // gl.LINE_STRIP
       gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
     }
+
+    // this.renderables.forEach((r) => { r.render(this.gl, this.program, mat4.create()); });
   }
 
   private initBuffers() {
@@ -510,43 +509,3 @@ export class AppComponent {
     };
   }
 }
-
-function makeVec(x: number, y: number, z: number): vec3 {
-  const vector = vec3.create();
-  vec3.set(vector, x, y, z);
-  return vector;
-}
-
-function addVec(arr: number[], vec: vec3) {
-  arr.push(vec[0]);
-  arr.push(vec[1]);
-  arr.push(vec[2]);
-}
-
-interface Square {
-  topLeft: vec3;
-  bottomLeft: vec3;
-  bottomRight: vec3;
-  topRight: vec3;
-  midPt: vec3;
-  isPartiallyElevated: boolean;
-}
-
-class Triangle {
-  constructor(
-    public a: vec3, 
-    public b: vec3, 
-    public c: vec3) {}
-
-  getNormal(): vec3 {
-    const u = vec3.create();
-    vec3.sub(u, this.b, this.a);
-    const v = vec3.create();
-    vec3.sub(v, this.c, this.a);
-    return makeVec(
-      u[1] * v[2] - u[2] * v[1],
-      u[2] * v[0] - u[0] * v[2],
-      u[0] * v[1] - u[1] * v[0]);
-  }
-}
-
