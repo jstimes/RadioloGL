@@ -62,7 +62,8 @@ export class AppComponent {
     const imageProcessor = new ImageProcessor();
     stackImagePaths.forEach(async (imagePath: string) => {
       this.textureRenderables.push(new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
-      const mesh = await imageProcessor.getMeshFromImage(this.gl, imagePath);
+      // const mesh = await imageProcessor.getMeshFromImage(this.gl, imagePath);
+      const mesh = await imageProcessor.getMeshFromStack(this.gl, stackImagePaths);
       this.standardRenderables.push(mesh);
     });
   }
@@ -76,6 +77,7 @@ export class AppComponent {
   update(elapsedMs: number): void {
     this.camera.update(elapsedMs);
     this.textureRenderables.forEach(tr => { tr.update(elapsedMs); });
+    this.standardRenderables.forEach(tr => { tr.update(elapsedMs); });
 
     if (CONTROLS.isKeyDown(Key.C)) {
       this.contrastLower -= this.delta;
@@ -107,7 +109,7 @@ export class AppComponent {
 
   private getStackImagePaths(): string[] {
     const imagePaths = [];
-    const numTextures = 103;
+    const numTextures = 10;// 103;
     const start = 86;
     for (let i = 0; i < numTextures; i++) {
       const path = '000020_04_01';
@@ -158,7 +160,7 @@ export class AppComponent {
       TEXTURE_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    this.textureRenderables[this.textureIndex].render(gl); // .forEach(tr => { tr.render(gl); });
+    // this.textureRenderables[this.textureIndex].render(gl); // .forEach(tr => { tr.render(gl); });
 
     gl.useProgram(STANDARD_PROGRAM.program);
     gl.uniformMatrix4fv(

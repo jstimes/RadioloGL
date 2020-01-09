@@ -1,5 +1,5 @@
 
-import {loadTexture, initShaderProgram, loadShader} from './gl_utils';
+import { loadTexture, initShaderProgram, loadShader } from './gl_utils';
 
 const VERTEX_SHADER_SOURCE = `
   precision mediump float;
@@ -28,43 +28,64 @@ const FRAGMENT_SHADER_SOURCE = `
 
   uniform vec4 uColor;
 
+  vec3 calculate_directional_light(
+      vec3 color, 
+      vec3 normal) {
+    vec3 lightDirection = vec3(-1, -1, -1);
+    vec3 surfaceToLight = normalize(-lightDirection);
+
+    float directionalDiffuseAmount = max(dot(normal, surfaceToLight), 0.0);
+    vec3 directionalDiffuse = directionalDiffuseAmount * color;
+    return directionalDiffuse;
+    
+    // vec3 directionalSpecularReflectDir = reflect(-surfaceToLight, normal);
+    // float directionalSpecularAmount = pow(max(dot(surfaceToCamera, directionalSpecularReflectDir), 0.0), material.shininess);
+    // vec4 directionalSpecular = directionalSpecularAmount * directionalLight.lightColor.specular * material.specular;
+
+    // return directionalAmbient + directionalDiffuse + directionalSpecular;
+  }
+
   void main() {
-    gl_FragColor = uColor;
+    vec3 rgb = calculate_directional_light(uColor.rgb, vNormal);
+    rgb[0] = min(.5, rgb[0]);
+    rgb[1] = min(.5, rgb[1]);
+    rgb[2] = min(.5, rgb[2]);
+    gl_FragColor = vec4(rgb, 1.0);
   }
 `;
 
 interface AttribLocations {
-    vertexPosition: number;
-    vertexNormal: number;
+  vertexPosition: number;
+  vertexNormal: number;
 }
 interface UniformLocations {
-    projectionMatrix: WebGLUniformLocation;
-    viewMatrix: WebGLUniformLocation;
-    modelMatrix: WebGLUniformLocation;
-    normalMatrix: WebGLUniformLocation;
-    color: WebGLUniformLocation;
+  projectionMatrix: WebGLUniformLocation;
+  viewMatrix: WebGLUniformLocation;
+  modelMatrix: WebGLUniformLocation;
+  normalMatrix: WebGLUniformLocation;
+  color: WebGLUniformLocation;
 }
 class StandardProgram {
 
-    program: WebGLProgram;
-    attribLocations: AttribLocations;
-    uniformLocations: UniformLocations;
+  program: WebGLProgram;
+  attribLocations: AttribLocations;
+  uniformLocations: UniformLocations;
 
-    init(gl: WebGLRenderingContext) {
-        const shaderProgram = initShaderProgram(gl, VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-        this.program = shaderProgram;
-        this.attribLocations = {
-            vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-            vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
-          };
-         this.uniformLocations = {
-            projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-            viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
-            modelMatrix: gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
-            normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-            color: gl.getUniformLocation(shaderProgram, 'uColor'),
-          };
-    }
+  init(gl: WebGLRenderingContext) {
+    const shaderProgram = initShaderProgram(gl, VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
+    this.program = shaderProgram;
+    this.attribLocations = {
+      vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+      vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+    };
+    this.uniformLocations = {
+      projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+      viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
+      modelMatrix: gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
+      normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
+      color: gl.getUniformLocation(shaderProgram, 'uColor'),
+    };
+  }
 }
 
 export const STANDARD_PROGRAM = new StandardProgram();

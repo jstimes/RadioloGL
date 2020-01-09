@@ -1,9 +1,32 @@
 import { vec3, vec4, mat4 } from './gl-matrix.js';
 import { TextureRenderable } from 'src/app/texture_renderable';
-import { Triangle, makeVec, addVec, Point } from './math_utils';
+import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares } from './math_utils';
 import { StandardRenderable } from 'src/app/standard_renderable';
 
+
+interface Volume {
+    z: Slice[];
+}
+
+function isPt(pt: vec3, volume: Volume): boolean {
+    return volume.z[pt[2]].y[pt[1]].x[pt[0]];
+}
+
+function isPts(pts: vec3[], volume: Volume): boolean {
+    return pts.every((pt) => { return isPt(pt, volume); });
+}
+
+interface Slice {
+    y: Row[];
+}
+
+interface Row {
+    x: boolean[];
+}
+
 export class ImageProcessor {
+
+    delta: number = 4;
 
     constructor() {
 
@@ -15,6 +38,103 @@ export class ImageProcessor {
         renderable.addTriangles(triangles);
         renderable.initBuffers(gl);
         return renderable;
+    }
+
+    async getMeshFromStack(gl: WebGLRenderingContext, stackImagePaths: string[]): Promise<StandardRenderable> {
+        const volume: Volume = {
+            z: [],
+        };
+        const slicePromises = [];
+        stackImagePaths.forEach(async (path: string) => {
+            slicePromises.push(this.processImage2(gl, path));
+        });
+
+        const slices = await Promise.all(slicePromises);
+        slices.forEach(slice => { volume.z.push(slice) });
+
+        const triangles = [];
+        const imageWidth = volume.z[0].y[0].x.length;
+        const imageHeight = volume.z[0].y.length;
+        const stackSize = volume.z.length;
+        const zOffset = 1;
+        const toGlPt = (volumeIndex: vec3): vec3 => {
+            return makeVec(
+                volumeIndex[0] * this.delta * (2 / imageWidth) - 1,
+                volumeIndex[1] * this.delta * (2 / imageHeight) - 1,
+                volumeIndex[2] * zOffset * (2 / stackSize));
+        };
+        for (let z = 1; z < stackSize; z++) {
+            for (let y = 1; y < imageHeight; y++) {
+                for (let x = 1; x < imageWidth; x++) {
+                    const volumePtRightTopFront = makeVec(x, y, z);
+                    const volumePtLeftTopFront = makeVec(x - 1, y, z);
+                    const volumePtLeftDownFront = makeVec(x - 1, y - 1, z);
+                    const volumePtRightDownFront = makeVec(x, y - 1, z);
+                    const volumePtLeftTopBack = makeVec(x - 1, y, z - 1);
+                    const volumePtLeftDownBack = makeVec(x - 1, y - 1, z - 1);
+                    const volumePtRightDownBack = makeVec(x, y - 1, z - 1);
+                    const volumePtRightTopBack = makeVec(x, y, z - 1);
+
+                    const allCubePts = [volumePtLeftTopBack, volumePtLeftDownBack, volumePtRightDownBack, volumePtRightTopBack,
+                        volumePtLeftTopFront, volumePtLeftDownFront, volumePtRightDownFront, volumePtRightTopFront];
+                    if (isPts(allCubePts, volume)) {
+                        const glPts = allCubePts.map(toGlPt);
+                        const top = new Square({ a: glPts[0], b: glPts[4], c: glPts[7], d: glPts[3] });
+                        const bottom = new Square({ a: glPts[5], b: glPts[1], c: glPts[2], d: glPts[6] });
+                        const back = new Square({ a: glPts[3], b: glPts[2], c: glPts[1], d: glPts[0] });
+                        const left = new Square({ a: glPts[0], b: glPts[1], c: glPts[5], d: glPts[4] });
+                        const front = new Square({ a: glPts[4], b: glPts[5], c: glPts[6], d: glPts[7] });
+                        const right = new Square({ a: glPts[7], b: glPts[6], c: glPts[2], d: glPts[3] });
+
+                        const squares = [top, bottom, back, left, right, front, back]
+                        getTrianglesFromSquares(squares).forEach(tri => {
+                            triangles.push(tri);
+                        });
+                    }
+                }
+            }
+        }
+
+        const renderable = new StandardRenderable();
+        renderable.addTriangles(triangles);
+        renderable.initBuffers(gl);
+        return renderable;
+    }
+
+    processImage2(gl: WebGLRenderingContext, src: string): Promise<Slice> {
+        return new Promise((resolve) => {
+            const image = new Image();
+            image.crossOrigin = "anonymous";
+            image.onload = () => {
+                // document.getElementById('canvas').width = '' + image.width;
+                // document.getElementById('canvas').height = '' + image.height;
+                const cells = image.width / this.delta;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                canvas.getContext('2d').drawImage(image, 0, 0, image.width, image.height);
+
+                const slice: Slice = {
+                    y: [],
+                };
+                for (let y = 0; y < cells; y++) {
+                    const row: Row = {
+                        x: [],
+                    };
+                    for (let x = 0; x < cells; x++) {
+                        const pt = { x: x * this.delta, y: y * this.delta };
+                        const rgba = canvas.getContext('2d').getImageData(pt.x, pt.y, 1, 1).data;
+                        const rgb = [rgba[0] / 256, rgba[1] / 256, rgba[2] / 256];
+                        const isAboveThreshold = Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) > .85;
+                        row.x.push(isAboveThreshold);
+                    }
+                    slice.y.push(row);
+                }
+                resolve(slice);
+            };
+            image.src = src;
+        });
     }
 
     processImage(gl: WebGLRenderingContext, src: string): Promise<Triangle[]> {
