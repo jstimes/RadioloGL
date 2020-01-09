@@ -63,7 +63,7 @@ export class AppComponent {
     stackImagePaths.forEach(async (imagePath: string) => {
       this.textureRenderables.push(new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
       // const mesh = await imageProcessor.getMeshFromImage(this.gl, imagePath);
-      const mesh = await imageProcessor.getMeshFromStack(this.gl, stackImagePaths);
+      const mesh = await imageProcessor.getDenseMeshFromStack(this.gl, stackImagePaths);
       this.standardRenderables.push(mesh);
     });
   }

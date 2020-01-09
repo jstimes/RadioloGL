@@ -26,21 +26,24 @@ interface Row {
 
 export class ImageProcessor {
 
-    delta: number = 4;
+    // TODO - avg when != to 1?
+    /** 
+     * How many pixels to SKIP when processing an image. 
+     * E.g. 1 means use every pixel, 4 means use every fourth.  
+     */
+    sampleRate: number = 8;
 
-    constructor() {
+    /**
+     *  The min length a voxel's RGB vector must be greater
+     *  than to be considered included in the mesh. 
+     */
+    pixelIntensityThreshold = .85;
 
-    }
-
-    async getMeshFromImage(gl: WebGLRenderingContext, stackImagePath: string): Promise<StandardRenderable> {
-        const triangles = await this.processImage(gl, stackImagePath);
-        const renderable = new StandardRenderable();
-        renderable.addTriangles(triangles);
-        renderable.initBuffers(gl);
-        return renderable;
-    }
-
-    async getMeshFromStack(gl: WebGLRenderingContext, stackImagePaths: string[]): Promise<StandardRenderable> {
+    /** 
+     * Returns a full 3D volume of the stack, where a cube is included if every corner point of the cube is above threshold.
+     * Includes inner cubes, not very efficient...
+     */
+    async getDenseMeshFromStack(gl: WebGLRenderingContext, stackImagePaths: string[]): Promise<StandardRenderable> {
         const volume: Volume = {
             z: [],
         };
@@ -48,6 +51,7 @@ export class ImageProcessor {
         stackImagePaths.forEach(async (path: string) => {
             slicePromises.push(this.processImage2(gl, path));
         });
+        console.log("Processed images, generating mesh points...");
 
         const slices = await Promise.all(slicePromises);
         slices.forEach(slice => { volume.z.push(slice) });
@@ -59,8 +63,8 @@ export class ImageProcessor {
         const zOffset = 1;
         const toGlPt = (volumeIndex: vec3): vec3 => {
             return makeVec(
-                volumeIndex[0] * this.delta * (2 / imageWidth) - 1,
-                volumeIndex[1] * this.delta * (2 / imageHeight) - 1,
+                volumeIndex[0] * this.sampleRate * (2 / imageWidth) - 1,
+                volumeIndex[1] * this.sampleRate * (2 / imageHeight) - 1,
                 volumeIndex[2] * zOffset * (2 / stackSize));
         };
         for (let z = 1; z < stackSize; z++) {
@@ -94,10 +98,14 @@ export class ImageProcessor {
                 }
             }
         }
+        console.log("Generated mesh points, creating buffers...");
 
         const renderable = new StandardRenderable();
         renderable.addTriangles(triangles);
         renderable.initBuffers(gl);
+
+        console.log("All done");
+
         return renderable;
     }
 
@@ -106,9 +114,7 @@ export class ImageProcessor {
             const image = new Image();
             image.crossOrigin = "anonymous";
             image.onload = () => {
-                // document.getElementById('canvas').width = '' + image.width;
-                // document.getElementById('canvas').height = '' + image.height;
-                const cells = image.width / this.delta;
+                const cells = image.width / this.sampleRate;
 
                 const canvas = document.createElement('canvas');
                 canvas.width = image.width;
@@ -123,10 +129,10 @@ export class ImageProcessor {
                         x: [],
                     };
                     for (let x = 0; x < cells; x++) {
-                        const pt = { x: x * this.delta, y: y * this.delta };
+                        const pt = { x: x * this.sampleRate, y: y * this.sampleRate };
                         const rgba = canvas.getContext('2d').getImageData(pt.x, pt.y, 1, 1).data;
                         const rgb = [rgba[0] / 256, rgba[1] / 256, rgba[2] / 256];
-                        const isAboveThreshold = Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) > .85;
+                        const isAboveThreshold = Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) > this.pixelIntensityThreshold;
                         row.x.push(isAboveThreshold);
                     }
                     slice.y.push(row);
@@ -137,13 +143,20 @@ export class ImageProcessor {
         });
     }
 
-    processImage(gl: WebGLRenderingContext, src: string): Promise<Triangle[]> {
+    /** Generates a 2d mesh of a single image, only contianing points where  each corner of a square is above the threshold. */
+    async getMeshFromImage(gl: WebGLRenderingContext, stackImagePath: string): Promise<StandardRenderable> {
+        const triangles = await this.processImage(gl, stackImagePath);
+        const renderable = new StandardRenderable();
+        renderable.addTriangles(triangles);
+        renderable.initBuffers(gl);
+        return renderable;
+    }
+
+    private processImage(gl: WebGLRenderingContext, src: string): Promise<Triangle[]> {
         return new Promise((resolve) => {
             const image = new Image();
             image.crossOrigin = "anonymous";
             image.onload = () => {
-                // document.getElementById('canvas').width = '' + image.width;
-                // document.getElementById('canvas').height = '' + image.height;
                 const delta = 4;
                 const cells = image.width / delta;
 
@@ -160,7 +173,7 @@ export class ImageProcessor {
 
                         const rgba = canvas.getContext('2d').getImageData(pt.x, pt.y, 1, 1).data;
                         const rgb = [rgba[0] / 256, rgba[1] / 256, rgba[2] / 256];
-                        const isAboveThreshold = Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) > .85;
+                        const isAboveThreshold = Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]) > this.pixelIntensityThreshold;
                         row.push(isAboveThreshold);
 
                     }
@@ -201,17 +214,8 @@ export class ImageProcessor {
                     }
                 }
                 resolve(triangles);
-
-                // const div = document.createElement("div");
-                // const rows = grid.map((row: boolean[]) => {
-                //   return row.map(b => b ? '1' : '0').join('');
-                // });
-                // const str = rows.join('\n');
-                // div.innerHTML = str;
-                // document.body.appendChild(div);
                 console.log("done");
             };
-
             image.src = src;
         });
     }

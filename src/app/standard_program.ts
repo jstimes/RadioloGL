@@ -33,10 +33,11 @@ const FRAGMENT_SHADER_SOURCE = `
       vec3 normal) {
     vec3 lightDirection = vec3(-1, -1, -1);
     vec3 surfaceToLight = normalize(-lightDirection);
+    vec3 ambient = vec3(.2);
 
     float directionalDiffuseAmount = max(dot(normal, surfaceToLight), 0.0);
     vec3 directionalDiffuse = directionalDiffuseAmount * color;
-    return directionalDiffuse;
+    return ambient + directionalDiffuse;
     
     // vec3 directionalSpecularReflectDir = reflect(-surfaceToLight, normal);
     // float directionalSpecularAmount = pow(max(dot(surfaceToCamera, directionalSpecularReflectDir), 0.0), material.shininess);
@@ -47,9 +48,6 @@ const FRAGMENT_SHADER_SOURCE = `
 
   void main() {
     vec3 rgb = calculate_directional_light(uColor.rgb, vNormal);
-    rgb[0] = min(.5, rgb[0]);
-    rgb[1] = min(.5, rgb[1]);
-    rgb[2] = min(.5, rgb[2]);
     gl_FragColor = vec4(rgb, 1.0);
   }
 `;
