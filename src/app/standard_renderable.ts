@@ -49,7 +49,7 @@ export class StandardRenderable {
         };
     }
 
-    yRotation = Math.PI + Math.PI / 4;
+    yRotation = 0.0;
 
     update(elapsedMs: number) {
         //this.yRotation += elapsedMs / 1000000;

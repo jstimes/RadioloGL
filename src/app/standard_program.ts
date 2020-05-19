@@ -47,8 +47,10 @@ const FRAGMENT_SHADER_SOURCE = `
   }
 
   void main() {
-    vec3 rgb = calculate_directional_light(uColor.rgb, vNormal);
-    gl_FragColor = vec4(rgb, 1.0);
+    // vec3 rgb = calculate_directional_light(uColor.rgb, vNormal);
+    // gl_FragColor = vec4(rgb, 1.0);
+
+    gl_FragColor = uColor;
   }
 `;
 

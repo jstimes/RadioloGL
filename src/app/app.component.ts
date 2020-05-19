@@ -8,7 +8,7 @@ import { StandardRenderable } from './standard_renderable';
 import { TEXTURE_PROGRAM } from 'src/app/texture_program';
 import { TextureRenderable } from 'src/app/texture_renderable';
 import { STANDARD_PROGRAM } from 'src/app/standard_program';
-import { ImageProcessor } from './image_processor';
+import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/image_processor';
 
 const HEIGHT = 800;
 const WIDTH = 1200;
@@ -33,6 +33,11 @@ export class AppComponent {
   textureIndex = 0;
   textureRenderables: TextureRenderable[] = [];
   standardRenderables: StandardRenderable[] = [];
+
+  imageProcessParams = {
+    sampleRate: 2,
+    pixelIntensityThreshold: .85,
+  };
 
   ngOnInit() {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -59,13 +64,22 @@ export class AppComponent {
   private async loadStack(): Promise<void> {
     const stackImagePaths = this.getStackImagePaths();
     this.numTextures = stackImagePaths.length;
-    const imageProcessor = new ImageProcessor();
+    const useImageMesh = false;
+
+    const meshPromises: Promise<StandardRenderable>[] = [];
     stackImagePaths.forEach(async (imagePath: string) => {
       this.textureRenderables.push(new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
-      // const mesh = await imageProcessor.getMeshFromImage(this.gl, imagePath);
-      const mesh = await imageProcessor.getDenseMeshFromStack(this.gl, stackImagePaths);
-      this.standardRenderables.push(mesh);
+      if (useImageMesh) {
+        meshPromises.push(getMeshFromImage(this.gl, imagePath, this.imageProcessParams));
+      }
     });
+    if (useImageMesh) {
+      const meshes = await Promise.all(meshPromises);
+      meshes.forEach((mesh) => this.standardRenderables.push(mesh));
+    } else {
+      const mesh = await getDenseMeshFromStack(this.gl, stackImagePaths, this.imageProcessParams);
+      this.standardRenderables.push(mesh);
+    }
   }
 
   private gameLoop(elapsedMs: number): void {
@@ -109,7 +123,7 @@ export class AppComponent {
 
   private getStackImagePaths(): string[] {
     const imagePaths = [];
-    const numTextures = 10;// 103;
+    const numTextures = 3;//103;
     const start = 86;
     for (let i = 0; i < numTextures; i++) {
       const path = '000020_04_01';
@@ -126,7 +140,8 @@ export class AppComponent {
   private getProjectionMatrix(): mat4 {
     const projectionMatrix = mat4.create();
     const fieldOfView = 45 * Math.PI / 180;
-    const aspect = this.gl.canvas.clientWidth / this.gl.canvas.clientHeight;
+    const glCanvas = this.gl.canvas as HTMLCanvasElement;
+    const aspect = glCanvas.clientWidth / glCanvas.clientHeight;
     const zNear = 0.1;
     const zFar = 100.0;
     mat4.perspective(projectionMatrix,
@@ -160,7 +175,7 @@ export class AppComponent {
       TEXTURE_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    // this.textureRenderables[this.textureIndex].render(gl); // .forEach(tr => { tr.render(gl); });
+    this.textureRenderables[this.textureIndex].render(gl); // .forEach(tr => { tr.render(gl); });
 
     gl.useProgram(STANDARD_PROGRAM.program);
     gl.uniformMatrix4fv(
