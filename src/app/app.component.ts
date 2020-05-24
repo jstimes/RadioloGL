@@ -65,6 +65,7 @@ export class AppComponent {
     const stackImagePaths = this.getStackImagePaths();
     this.numTextures = stackImagePaths.length;
     const useImageMesh = false;
+    const useDenseMesh = false;
 
     const meshPromises: Promise<StandardRenderable>[] = [];
     stackImagePaths.forEach(async (imagePath: string) => {
@@ -76,7 +77,7 @@ export class AppComponent {
     if (useImageMesh) {
       const meshes = await Promise.all(meshPromises);
       meshes.forEach((mesh) => this.standardRenderables.push(mesh));
-    } else {
+    } else if (useDenseMesh) {
       const mesh = await getDenseMeshFromStack(this.gl, stackImagePaths, this.imageProcessParams);
       this.standardRenderables.push(mesh);
     }
@@ -115,15 +116,18 @@ export class AppComponent {
         this.textureIndex--;
       }
     }
-    document.getElementById('contrast-lower').innerHTML = `Contrast lower: ${this.contrastLower}`;
-    document.getElementById('contrast-upper').innerHTML = `Contrast upper: ${this.contrastUpper}`;
-    document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex}`;
-    this.isShowingOverlay = (document.getElementById('show-overlay') as HTMLInputElement).checked;
+    document.getElementById('contrast-lower').innerHTML =
+      `Contrast lower: ${this.contrastLower.toPrecision(4)}`;
+    document.getElementById('contrast-upper').innerHTML =
+      `Contrast upper: ${this.contrastUpper.toPrecision(4)} `;
+    document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex} `;
+    this.isShowingOverlay =
+      (document.getElementById('show-overlay') as HTMLInputElement).checked;
   }
 
   private getStackImagePaths(): string[] {
     const imagePaths = [];
-    const numTextures = 3;//103;
+    const numTextures = 103;
     const start = 86;
     for (let i = 0; i < numTextures; i++) {
       const path = '000020_04_01';
