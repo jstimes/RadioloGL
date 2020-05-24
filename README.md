@@ -1,4 +1,7 @@
 # RadioloGL
+An interactive DICOM image viewer built with WebGL.
+
+All images are anonymized and come from [DeepLesion](https://nihcc.app.box.com/v/DeepLesion/folder/50715173939).
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 8.2.0.
 

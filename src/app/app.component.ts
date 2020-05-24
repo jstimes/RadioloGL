@@ -19,7 +19,7 @@ const WIDTH = 1200;
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'CtTs';
+  title = 'RadioloGL';
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext;
   camera: Camera;
