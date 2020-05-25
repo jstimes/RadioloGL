@@ -135,7 +135,7 @@ export class AppComponent {
       if (i + start < 100) {
         pre = '0';
       }
-      const imagePath = `/assets/imgs/${path}/${pre}${i + start}.png`;
+      const imagePath = `./assets/imgs/${path}/${pre}${i + start}.png`;
       imagePaths.push(imagePath);
     }
     return imagePaths;

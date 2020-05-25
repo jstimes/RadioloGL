@@ -1,7 +1,7 @@
 # RadioloGL
 An interactive radiology DICOM image viewer built with WebGL.
 
-Check out a live demo [here](https://jstimes.github.io/RadioloGL/dist/Radiology/index.html).
+Check out a live demo [here](https://jstimes.github.io/RadioloGL/dist/RadioloGL/index.html).
 
 All images are anonymized and come from [DeepLesion](https://nihcc.app.box.com/v/DeepLesion/folder/50715173939).
 
