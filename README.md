@@ -1,5 +1,5 @@
 # RadioloGL
-An interactive radiology DICOM image viewer built with WebGL.
+An interactive radiology image viewer built with WebGL.
 
 Check out a live demo [here](https://jstimes.github.io/RadioloGL/dist/RadioloGL/index.html).
 
