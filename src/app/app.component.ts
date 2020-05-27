@@ -36,10 +36,8 @@ export class AppComponent {
   private textureIndex = 0;
   private textureRenderables: TextureRenderable[] = [];
 
-  isShowingOverlay: boolean = false;
-  standardRenderables: StandardRenderable[] = [];
-
-  imageProcessParams = {
+  private standardRenderables: StandardRenderable[] = [];
+  private imageProcessParams = {
     sampleRate: 2,
     pixelIntensityThreshold: .85,
   };
@@ -122,9 +120,6 @@ export class AppComponent {
         this.textureIndex--;
       }
     }
-
-    this.isShowingOverlay =
-      (document.getElementById('show-overlay') as HTMLInputElement).checked;
   }
 
   getColorIntensityLowerBoundUi(): string {
@@ -145,11 +140,11 @@ export class AppComponent {
     const start = 86;
     for (let i = 0; i < numTextures; i++) {
       const path = '000020_04_01';
-      let pre = '';
+      let prefix = '';
       if (i + start < 100) {
-        pre = '0';
+        prefix = '0';
       }
-      const imagePath = `./assets/imgs/${path}/${pre}${i + start}.png`;
+      const imagePath = `./assets/imgs/${path}/${prefix}${i + start}.png`;
       imagePaths.push(imagePath);
     }
     return imagePaths;
@@ -208,8 +203,7 @@ export class AppComponent {
       STANDARD_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    if (this.isShowingOverlay
-      && this.textureIndex < this.standardRenderables.length) {
+    if (this.textureIndex < this.standardRenderables.length) {
       this.standardRenderables[this.textureIndex].render(gl);
     }
   }
