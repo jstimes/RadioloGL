@@ -1,5 +1,21 @@
+--------------------------------------------------------------------------------
+ANALYSIS/RENDERING
+--------------------------------------------------------------------------------
+- don't just store a boolean! Fist just store average or interpolation 
+ or something more specific, and decide what to do with it when converting to 
+ a mesh
+    - render by opacity
+
+- Allow for adjustment of min/max x/y/z plane (e.g. to only render top half or 
+  subsections of entire volume, since likely the 'outer ring' will obstruct 
+  viewing the inner geometries)
+
+--------------------------------------------------------------------------------
+CLEANUP
+--------------------------------------------------------------------------------
 - Use npm package for gl-matrix
 
 - Split code for 2d vs 3d
 
-- Refactor such that shader programs can be constructed fully (without init call).
+- Refactor such that shader programs can be constructed fully (without init 
+  call).
