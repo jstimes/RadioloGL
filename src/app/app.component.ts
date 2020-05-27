@@ -48,7 +48,9 @@ export class AppComponent {
 
     // Only continue if WebGL is available and working
     if (this.gl === null) {
-      alert("Unable to initialize WebGL. Your browser or machine may not support it.");
+      alert(
+        `Unable to initialize WebGL. Your browser or machine may not support` +
+        ` it.`);
       return;
     }
 
@@ -91,7 +93,6 @@ export class AppComponent {
 
   update(elapsedMs: number): void {
     this.camera.update(elapsedMs);
-    this.textureRenderables.forEach(tr => { tr.update(elapsedMs); });
     this.standardRenderables.forEach(tr => { tr.update(elapsedMs); });
 
     if (CONTROLS.isKeyDown(Key.C)) {
