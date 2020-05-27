@@ -27,8 +27,8 @@ const FRAGMENT_SHADER_SOURCE = `
 
   varying vec2 vTextureCoord;
 
-  uniform float uContrastLower;
-  uniform float uContrastUpper;
+  uniform float uColorIntensityLower;
+  uniform float uColorIntensityUpper;
 
   uniform sampler2D uSampler;
 
@@ -36,7 +36,7 @@ const FRAGMENT_SHADER_SOURCE = `
     vec4 texelColor = texture2D(uSampler, vTextureCoord);
 
     float value = smoothstep(
-      uContrastLower, uContrastUpper, length(texelColor.rgb));
+      uColorIntensityLower, uColorIntensityUpper, length(texelColor.rgb));
     vec3 rgb = vec3(value);
 
     gl_FragColor = vec4(rgb, texelColor.a);
@@ -44,16 +44,16 @@ const FRAGMENT_SHADER_SOURCE = `
 `;
 
 interface AttribLocations {
-  vertexPosition: number;
-  textureCoord: number;
+  readonly vertexPosition: number;
+  readonly textureCoord: number;
 }
 interface UniformLocations {
-  projectionMatrix: WebGLUniformLocation;
-  viewMatrix: WebGLUniformLocation;
-  modelMatrix: WebGLUniformLocation;
-  sampler: WebGLUniformLocation;
-  contrastLower: WebGLUniformLocation;
-  contrastUpper: WebGLUniformLocation;
+  readonly projectionMatrix: WebGLUniformLocation;
+  readonly viewMatrix: WebGLUniformLocation;
+  readonly modelMatrix: WebGLUniformLocation;
+  readonly sampler: WebGLUniformLocation;
+  readonly colorIntensityLowerBound: WebGLUniformLocation;
+  readonly colorIntensityUpperBound: WebGLUniformLocation;
 }
 
 class TextureProgram {
@@ -76,8 +76,10 @@ class TextureProgram {
       viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
       modelMatrix: gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
       sampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
-      contrastLower: gl.getUniformLocation(shaderProgram, 'uContrastLower'),
-      contrastUpper: gl.getUniformLocation(shaderProgram, 'uContrastUpper'),
+      colorIntensityLowerBound:
+        gl.getUniformLocation(shaderProgram, 'uColorIntensityLower'),
+      colorIntensityUpperBound:
+        gl.getUniformLocation(shaderProgram, 'uColorIntensityUpper'),
     };
   }
 }

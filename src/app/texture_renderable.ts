@@ -12,8 +12,8 @@ interface Buffers {
 
 export class TextureRenderable {
 
-    texture: WebGLTexture;
-    buffers: Buffers;
+    private readonly texture: WebGLTexture;
+    private buffers: Buffers;
 
     constructor(gl: WebGLRenderingContext, texture: WebGLTexture) {
         this.texture = texture;
@@ -26,12 +26,17 @@ export class TextureRenderable {
         // Tell WebGL how to pull out the positions from the position
         // buffer into the vertexPosition attribute.
         {
-            const numComponents = 3;  // pull out 2 values per iteration
-            const type = gl.FLOAT;    // the data in the buffer is 32bit floats
-            const normalize = false;  // don't normalize
-            const stride = 0;         // how many bytes to get from one set of values to the next
+            // pull out 3 values per iteration
+            const numComponents = 3;
+            // the data in the buffer is 32bit floats
+            const type = gl.FLOAT;
+            // don't normalize
+            const normalize = false;
+            // how many bytes to get from one set of values to the next
             // 0 = use type and numComponents above
-            const offset = 0;         // how many bytes inside the buffer to start from
+            const stride = 0;
+            // how many bytes inside the buffer to start from
+            const offset = 0;
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
             gl.vertexAttribPointer(
                 TEXTURE_PROGRAM.attribLocations.vertexPosition,
@@ -46,14 +51,22 @@ export class TextureRenderable {
 
         // Tell webgl how to pull out the texture coordinates from buffer
         {
-            const num = 2; // every coordinate composed of 2 values
-            const type = gl.FLOAT; // the data in the buffer is 32 bit float
-            const normalize = false; // don't normalize
-            const stride = 0; // how many bytes to get from one set to the next
-            const offset = 0; // how many bytes inside the buffer to start from
+            // every coordinate composed of 2 values
+            const num = 2;
+            // the data in the buffer is 32 bit float
+            const type = gl.FLOAT;
+            // don't normalize
+            const normalize = false;
+            // how many bytes to get from one set to the next
+            const stride = 0;
+            // how many bytes inside the buffer to start from
+            const offset = 0;
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.textureCoord);
-            gl.vertexAttribPointer(TEXTURE_PROGRAM.attribLocations.textureCoord, num, type, normalize, stride, offset);
-            gl.enableVertexAttribArray(TEXTURE_PROGRAM.attribLocations.textureCoord);
+            gl.vertexAttribPointer(
+                TEXTURE_PROGRAM.attribLocations.textureCoord,
+                num, type, normalize, stride, offset);
+            gl.enableVertexAttribArray(
+                TEXTURE_PROGRAM.attribLocations.textureCoord);
         }
 
         // Tell WebGL which indices to use to index the vertices

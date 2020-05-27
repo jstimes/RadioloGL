@@ -12,7 +12,7 @@ import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/imag
 
 const HEIGHT = 800;
 const WIDTH = 1200;
-const CONTRAST_DELTA = .005;
+const COLOR_INTENSITY_DELTA = .005;
 
 @Component({
   selector: 'app-root',
@@ -25,13 +25,18 @@ export class AppComponent {
   private gl: WebGLRenderingContext;
   private camera: Camera;
 
-  private contrastLower = .85;
-  private contrastUpper = .9;
+  /** 
+   * Color intensities of the image are clamped between these bounds. 
+   * Color intensity = ||rgb||.
+   */
+  private colorIntensityLowerBound = .85;
+  private colorIntensityUpperBound = .9;
+
+  private numTextures = 0;
+  private textureIndex = 0;
+  private textureRenderables: TextureRenderable[] = [];
 
   isShowingOverlay: boolean = false;
-  numTextures = 0;
-  textureIndex = 0;
-  textureRenderables: TextureRenderable[] = [];
   standardRenderables: StandardRenderable[] = [];
 
   imageProcessParams = {
@@ -96,16 +101,16 @@ export class AppComponent {
     this.standardRenderables.forEach(tr => { tr.update(elapsedMs); });
 
     if (CONTROLS.isKeyDown(Key.C)) {
-      this.contrastLower -= CONTRAST_DELTA;
+      this.colorIntensityLowerBound -= COLOR_INTENSITY_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.V)) {
-      this.contrastLower += CONTRAST_DELTA;
+      this.colorIntensityLowerBound += COLOR_INTENSITY_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.B)) {
-      this.contrastUpper -= CONTRAST_DELTA;
+      this.colorIntensityUpperBound -= COLOR_INTENSITY_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.N)) {
-      this.contrastUpper += CONTRAST_DELTA;
+      this.colorIntensityUpperBound += COLOR_INTENSITY_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.W)) {
       if (this.textureIndex < this.numTextures - 1) {
@@ -117,10 +122,12 @@ export class AppComponent {
         this.textureIndex--;
       }
     }
-    document.getElementById('contrast-lower').innerHTML =
-      `Contrast lower: ${this.contrastLower.toPrecision(4)}`;
-    document.getElementById('contrast-upper').innerHTML =
-      `Contrast upper: ${this.contrastUpper.toPrecision(4)} `;
+    document.getElementById('color-intensity-lower-bound').innerHTML =
+      `Color intensity lower bound: ` +
+      `${this.colorIntensityLowerBound.toPrecision(4)}`;
+    document.getElementById('color-intensity-upper-bound').innerHTML =
+      `Color intensity upper bound: ` +
+      `${this.colorIntensityUpperBound.toPrecision(4)} `;
     document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex} `;
     this.isShowingOverlay =
       (document.getElementById('show-overlay') as HTMLInputElement).checked;
@@ -171,11 +178,11 @@ export class AppComponent {
 
     gl.useProgram(TEXTURE_PROGRAM.program);
     gl.uniform1f(
-      TEXTURE_PROGRAM.uniformLocations.contrastLower,
-      this.contrastLower);
+      TEXTURE_PROGRAM.uniformLocations.colorIntensityLowerBound,
+      this.colorIntensityLowerBound);
     gl.uniform1f(
-      TEXTURE_PROGRAM.uniformLocations.contrastUpper,
-      this.contrastUpper);
+      TEXTURE_PROGRAM.uniformLocations.colorIntensityUpperBound,
+      this.colorIntensityUpperBound);
     gl.uniformMatrix4fv(
       TEXTURE_PROGRAM.uniformLocations.projectionMatrix,
       false,
