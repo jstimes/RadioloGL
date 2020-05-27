@@ -10,13 +10,13 @@ export interface ProcessParams {
      * How many pixels to SKIP when processing an image. 
      * E.g. 1 means use every pixel, 4 means use every fourth.  
      */
-    sampleRate: number;
+    readonly sampleRate: number;
 
     /**
      *  The min length a voxel's RGB vector must be greater
      *  than to be considered included in the mesh. 
      */
-    pixelIntensityThreshold: number;
+    readonly pixelIntensityThreshold: number;
 }
 
 /** 
