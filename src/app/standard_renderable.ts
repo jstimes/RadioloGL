@@ -5,10 +5,12 @@ import { CONTROLS, Key } from 'src/app/controls';
 
 export class StandardRenderable {
 
-    buffers: { position: WebGLBuffer; normal: WebGLBuffer };
+    private buffers: { position: WebGLBuffer; normal: WebGLBuffer };
 
-    positions: number[] = [];
-    normals: number[] = [];
+    private positions: number[] = [];
+    private normals: number[] = [];
+
+    private yRotation = 0.0;
 
     getPositions(): number[] {
         return this.positions;
@@ -49,10 +51,7 @@ export class StandardRenderable {
         };
     }
 
-    yRotation = 0.0;
-
     update(elapsedMs: number) {
-        //this.yRotation += elapsedMs / 1000000;
         if (CONTROLS.isKeyDown(Key.U)) {
             this.yRotation -= .05;
         }
@@ -73,12 +72,17 @@ export class StandardRenderable {
         // Tell WebGL how to pull out the positions from the position
         // buffer into the vertexPosition attribute.
         {
-            const numComponents = 3;  // pull out 3 values per iteration
-            const type = gl.FLOAT;    // the data in the buffer is 32bit floats
-            const normalize = false;  // don't normalize
-            const stride = 0;         // how many bytes to get from one set of values to the next
+            // pull out 3 values per iteration
+            const numComponents = 3;
+            // the data in the buffer is 32bit floats
+            const type = gl.FLOAT;
+            // don't normalize
+            const normalize = false;
+            // how many bytes to get from one set of values to the next
             // 0 = use type and numComponents above
-            const offset = 0;         // how many bytes inside the buffer to start from
+            const stride = 0;
+            // how many bytes inside the buffer to start from
+            const offset = 0;
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
             gl.vertexAttribPointer(
                 STANDARD_PROGRAM.attribLocations.vertexPosition,

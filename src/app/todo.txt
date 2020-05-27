@@ -1,0 +1,5 @@
+- Use npm package for gl-matrix
+
+- Split code for 2d vs 3d
+
+- Refactor such that shader programs can be constructed fully (without init call).

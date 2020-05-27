@@ -1,4 +1,3 @@
-
 import { loadTexture, initShaderProgram, loadShader } from './gl_utils';
 
 const VERTEX_SHADER_SOURCE = `
@@ -15,7 +14,8 @@ const VERTEX_SHADER_SOURCE = `
   varying vec3 vNormal;
 
   void main() {
-    gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
+    gl_Position = 
+        uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
 
     vNormal = (uNormalMatrix * vec4(aVertexNormal, 1.0)).xyz;
   }
@@ -72,14 +72,16 @@ class StandardProgram {
   uniformLocations: UniformLocations;
 
   init(gl: WebGLRenderingContext) {
-    const shaderProgram = initShaderProgram(gl, VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
+    const shaderProgram = initShaderProgram(
+      gl, VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
     this.program = shaderProgram;
     this.attribLocations = {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
     };
     this.uniformLocations = {
-      projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+      projectionMatrix:
+        gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
       modelMatrix: gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
       normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
