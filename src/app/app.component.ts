@@ -73,17 +73,22 @@ export class AppComponent {
     const useDenseMesh = false;
 
     const meshPromises: Promise<StandardRenderable>[] = [];
-    stackImagePaths.forEach(async (imagePath: string) => {
-      this.textureRenderables.push(new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
+    stackImagePaths.forEach((imagePath: string) => {
+      this.textureRenderables.push(
+        new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
       if (useImageMesh) {
-        meshPromises.push(getMeshFromImage(this.gl, imagePath, this.imageProcessParams));
+        meshPromises.push(getMeshFromImage(
+          this.gl, imagePath, this.imageProcessParams));
       }
     });
     if (useImageMesh) {
       const meshes = await Promise.all(meshPromises);
-      meshes.forEach((mesh) => this.standardRenderables.push(mesh));
+      meshes.forEach((mesh) => {
+        this.standardRenderables.push(mesh);
+      });
     } else if (useDenseMesh) {
-      const mesh = await getDenseMeshFromStack(this.gl, stackImagePaths, this.imageProcessParams);
+      const mesh = await getDenseMeshFromStack(
+        this.gl, stackImagePaths, this.imageProcessParams);
       this.standardRenderables.push(mesh);
     }
   }
@@ -94,9 +99,11 @@ export class AppComponent {
     window.requestAnimationFrame((elapsedMs) => { this.gameLoop(elapsedMs); });
   }
 
-  update(elapsedMs: number): void {
+  private update(elapsedMs: number): void {
     this.camera.update(elapsedMs);
-    this.standardRenderables.forEach(tr => { tr.update(elapsedMs); });
+    this.standardRenderables.forEach((renderable) => {
+      renderable.update(elapsedMs);
+    });
 
     if (CONTROLS.isKeyDown(Key.C)) {
       this.colorIntensityLowerBound -= COLOR_INTENSITY_DELTA;
@@ -120,18 +127,6 @@ export class AppComponent {
         this.textureIndex--;
       }
     }
-  }
-
-  getColorIntensityLowerBoundUi(): string {
-    return `${this.colorIntensityLowerBound.toPrecision(4)}`;
-  }
-
-  getColorIntensityUpperBoundUi(): string {
-    return `${this.colorIntensityUpperBound.toPrecision(4)}`;
-  }
-
-  getSliceIndexUi(): string {
-    return `${this.textureIndex}`;
   }
 
   private getStackImagePaths(): string[] {
@@ -206,5 +201,19 @@ export class AppComponent {
     if (this.textureIndex < this.standardRenderables.length) {
       this.standardRenderables[this.textureIndex].render(gl);
     }
+  }
+
+  // TEMPLATE METHODS ----------------------------------------------------------
+
+  getColorIntensityLowerBoundUi(): string {
+    return `${this.colorIntensityLowerBound.toPrecision(4)}`;
+  }
+
+  getColorIntensityUpperBoundUi(): string {
+    return `${this.colorIntensityUpperBound.toPrecision(4)}`;
+  }
+
+  getSliceIndexUi(): string {
+    return `${this.textureIndex}`;
   }
 }
