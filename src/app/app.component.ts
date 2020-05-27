@@ -12,6 +12,7 @@ import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/imag
 
 const HEIGHT = 800;
 const WIDTH = 1200;
+const CONTRAST_DELTA = .005;
 
 @Component({
   selector: 'app-root',
@@ -19,14 +20,13 @@ const WIDTH = 1200;
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'RadioloGL';
-  canvas: HTMLCanvasElement;
-  gl: WebGLRenderingContext;
-  camera: Camera;
+  private readonly title = 'RadioloGL';
+  private canvas: HTMLCanvasElement;
+  private gl: WebGLRenderingContext;
+  private camera: Camera;
 
-  contrastLower = .85;
-  contrastUpper = .9;
-  delta = .005;
+  private contrastLower = .85;
+  private contrastUpper = .9;
 
   isShowingOverlay: boolean = false;
   numTextures = 0;
@@ -95,16 +95,16 @@ export class AppComponent {
     this.standardRenderables.forEach(tr => { tr.update(elapsedMs); });
 
     if (CONTROLS.isKeyDown(Key.C)) {
-      this.contrastLower -= this.delta;
+      this.contrastLower -= CONTRAST_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.V)) {
-      this.contrastLower += this.delta;
+      this.contrastLower += CONTRAST_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.B)) {
-      this.contrastUpper -= this.delta;
+      this.contrastUpper -= CONTRAST_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.N)) {
-      this.contrastUpper += this.delta;
+      this.contrastUpper += CONTRAST_DELTA;
     }
     if (CONTROLS.isKeyDown(Key.W)) {
       if (this.textureIndex < this.numTextures - 1) {
@@ -169,8 +169,12 @@ export class AppComponent {
     const viewMatrix = this.camera.getViewMatrix();
 
     gl.useProgram(TEXTURE_PROGRAM.program);
-    gl.uniform1f(TEXTURE_PROGRAM.uniformLocations.contrastLower, this.contrastLower);
-    gl.uniform1f(TEXTURE_PROGRAM.uniformLocations.contrastUpper, this.contrastUpper);
+    gl.uniform1f(
+      TEXTURE_PROGRAM.uniformLocations.contrastLower,
+      this.contrastLower);
+    gl.uniform1f(
+      TEXTURE_PROGRAM.uniformLocations.contrastUpper,
+      this.contrastUpper);
     gl.uniformMatrix4fv(
       TEXTURE_PROGRAM.uniformLocations.projectionMatrix,
       false,
@@ -179,7 +183,7 @@ export class AppComponent {
       TEXTURE_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    this.textureRenderables[this.textureIndex].render(gl); // .forEach(tr => { tr.render(gl); });
+    this.textureRenderables[this.textureIndex].render(gl);
 
     gl.useProgram(STANDARD_PROGRAM.program);
     gl.uniformMatrix4fv(
@@ -190,8 +194,9 @@ export class AppComponent {
       STANDARD_PROGRAM.uniformLocations.viewMatrix,
       false,
       viewMatrix);
-    if (this.isShowingOverlay && this.textureIndex < this.standardRenderables.length) {
-      this.standardRenderables[this.textureIndex].render(gl); //.forEach(sr => { sr.render(gl); });
+    if (this.isShowingOverlay
+      && this.textureIndex < this.standardRenderables.length) {
+      this.standardRenderables[this.textureIndex].render(gl);
     }
   }
 }
