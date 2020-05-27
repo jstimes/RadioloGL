@@ -1,10 +1,19 @@
 <canvas id='canvas'></canvas>
-<div id='overlay'>
-    <div id='slice'>Slice: </div>
-    <div id='color-intensity-lower-bound'>Contrast lower: </div>
-    <div id='color-intensity-upper-bound'>Contrast upper: </div>
+<div class='overlay'>
+    <div>
+        Slice:
+        <span>{{getSliceIndexUi()}}</span>
+    </div>
+    <div>
+        Contrast lower:
+        <span>{{getColorIntensityLowerBoundUi()}}</span>
+    </div>
+    <div>
+        Contrast upper:
+        <span>{{getColorIntensityUpperBoundUi()}}</span>
+    </div>
 </div>
-<div id='controls'>
+<div class='controls'>
     <label>Show overlay:
         <input id='show-overlay' type='checkbox' checked=false value=false>
     </label>

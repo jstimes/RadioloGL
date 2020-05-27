@@ -4,14 +4,14 @@
     left: 12px;
 }
 
-#overlay {
+.overlay {
     position: absolute;
     top: 16px;
     left: 16px;
     color: white;
 }
 
-#controls {
+.controls {
     position: absolute;
     top: 816px;
     left: 16px;

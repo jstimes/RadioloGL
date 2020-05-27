@@ -5,9 +5,9 @@ import { CONTROLS, Key } from 'src/app/controls';
 import { loadTexture } from './gl_utils';
 
 interface Buffers {
-    position: WebGLBuffer;
-    textureCoord: WebGLBuffer;
-    indices: WebGLBuffer;
+    readonly position: WebGLBuffer;
+    readonly textureCoord: WebGLBuffer;
+    readonly indices: WebGLBuffer;
 }
 
 export class TextureRenderable {

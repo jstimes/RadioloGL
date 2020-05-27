@@ -1,12 +1,12 @@
-import {vec3, mat4} from 'src/app/gl-matrix.js';
-import {makeVec} from 'src/app/math_utils';
+import { vec3, mat4 } from 'src/app/gl-matrix.js';
+import { makeVec } from 'src/app/math_utils';
 import { CONTROLS, Key } from 'src/app/controls';
 
 
 export class Camera {
     cameraPosition: vec3;
     target: vec3;
-    up = makeVec(0, 1, 0);
+    readonly up = makeVec(0, 1, 0);
 
     constructor() {
         this.cameraPosition = makeVec(0, 0, 5);
@@ -49,18 +49,18 @@ export class Camera {
 
     ORBIT_ANGLE = Math.PI / 24;
     orbitRight() {
-       vec3.rotateY(
-           this.cameraPosition, 
-           this.cameraPosition, 
-           this.target, 
-           this.ORBIT_ANGLE);
+        vec3.rotateY(
+            this.cameraPosition,
+            this.cameraPosition,
+            this.target,
+            this.ORBIT_ANGLE);
     }
 
     orbitLeft() {
         vec3.rotateY(
-            this.cameraPosition, 
-            this.cameraPosition, 
-            this.target, 
+            this.cameraPosition,
+            this.cameraPosition,
+            this.target,
             -this.ORBIT_ANGLE);
     }
 

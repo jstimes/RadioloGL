@@ -122,15 +122,21 @@ export class AppComponent {
         this.textureIndex--;
       }
     }
-    document.getElementById('color-intensity-lower-bound').innerHTML =
-      `Color intensity lower bound: ` +
-      `${this.colorIntensityLowerBound.toPrecision(4)}`;
-    document.getElementById('color-intensity-upper-bound').innerHTML =
-      `Color intensity upper bound: ` +
-      `${this.colorIntensityUpperBound.toPrecision(4)} `;
-    document.getElementById('slice').innerHTML = `Slice: ${this.textureIndex} `;
+
     this.isShowingOverlay =
       (document.getElementById('show-overlay') as HTMLInputElement).checked;
+  }
+
+  getColorIntensityLowerBoundUi(): string {
+    return `${this.colorIntensityLowerBound.toPrecision(4)}`;
+  }
+
+  getColorIntensityUpperBoundUi(): string {
+    return `${this.colorIntensityUpperBound.toPrecision(4)}`;
+  }
+
+  getSliceIndexUi(): string {
+    return `${this.textureIndex}`;
   }
 
   private getStackImagePaths(): string[] {
