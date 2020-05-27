@@ -4,7 +4,9 @@
  */
 
 /** Initialize a shader program, so WebGL knows how to draw our data. */
-export function initShaderProgram(gl: WebGLRenderingContext, vsSource: string, fsSource: string): WebGLProgram {
+export function initShaderProgram(
+    gl: WebGLRenderingContext, vsSource: string, fsSource: string):
+    WebGLProgram {
     const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
     const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
@@ -16,14 +18,17 @@ export function initShaderProgram(gl: WebGLRenderingContext, vsSource: string, f
 
     // If creating the shader program failed, alert
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+        alert('Unable to initialize the shader program: ' +
+            gl.getProgramInfoLog(shaderProgram));
         return null;
     }
     return shaderProgram;
 }
 
 /** Creates a shader of the given type, uploads the source and compiles it. */
-export function loadShader(gl: WebGLRenderingContext, type: number, source: string) {
+export function loadShader(
+    gl: WebGLRenderingContext, type: number, source: string) {
+
     const shader: WebGLShader = gl.createShader(type);
     // Send the source to the shader object
     gl.shaderSource(shader, source);
@@ -32,7 +37,8 @@ export function loadShader(gl: WebGLRenderingContext, type: number, source: stri
 
     // See if it compiled successfully
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+        alert('An error occurred compiling the shaders: ' +
+            gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
     }
@@ -44,7 +50,9 @@ export function loadShader(gl: WebGLRenderingContext, type: number, source: stri
  * Initialize a texture and load an image.
  * When the image finished loading copy it into the texture.
  */
-export function loadTexture(gl: WebGLRenderingContext, url: string): WebGLTexture {
+export function loadTexture(
+    gl: WebGLRenderingContext, url: string): WebGLTexture {
+
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -62,40 +70,44 @@ export function loadTexture(gl: WebGLRenderingContext, url: string): WebGLTextur
     const srcType = gl.UNSIGNED_BYTE;
     const pixel = new Uint8Array([0, 0, 255, 255]);  // opaque blue
     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                    width, height, border, srcFormat, srcType,
-                    pixel);
+        width, height, border, srcFormat, srcType,
+        pixel);
 
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                    srcFormat, srcType, image);
+            srcFormat, srcType, image);
 
         // WebGL1 has different requirements for power of 2 images
         // vs non power of 2 images so check if the image is a
         // power of 2 in both dimensions.
         if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-        // Yes, it's a power of 2. Generate mips.
-        gl.generateMipmap(gl.TEXTURE_2D);
+            // Yes, it's a power of 2. Generate mips.
+            gl.generateMipmap(gl.TEXTURE_2D);
         } else {
-        // No, it's not a power of 2. Turn off mips and set
-        // wrapping to clamp to edge
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            // No, it's not a power of 2. Turn off mips and set
+            // wrapping to clamp to edge
+            gl.texParameteri(
+                gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(
+                gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(
+                gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
-        // gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        // Prevents s-coordinate wrapping (repeating).
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        // Prevents t-coordinate wrapping (repeating).
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            // gl.NEAREST is also allowed, instead of gl.LINEAR, as neither mipmap.
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            // Prevents s-coordinate wrapping (repeating).
+            gl.texParameteri(
+                gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            // Prevents t-coordinate wrapping (repeating).
+            gl.texParameteri(
+                gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         }
     };
 
     image.src = url;
-
     return texture;
 }
 
