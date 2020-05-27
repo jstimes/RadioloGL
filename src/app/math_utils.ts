@@ -2,23 +2,28 @@ import { vec3, vec4, mat4 } from './gl-matrix.js';
 
 export const EPSILON: number = .001;
 
+/** Creates a gl-matrix vec3 object. */
 export function makeVec(x: number, y: number, z: number): vec3 {
     const vector = vec3.create();
     vec3.set(vector, x, y, z);
     return vector;
 }
 
+/** Creates a gl-matrix vec4 object. */
 export function makeVec4(x: number, y: number, z: number, w: number): vec4 {
     const vector = vec4.create();
     vec4.set(vector, x, y, z, w);
     return vector;
 }
 
+/** A thing with an x and a y. */
 export interface Point {
-    x: number;
-    y: number;
+    readonly x: number;
+    readonly y: number;
 }
 
+// TODO - rename to pushVec?
+/** Appends a vec3 to an array of numbers. */
 export function addVec(arr: number[], vec: vec3) {
     arr.push(vec[0]);
     arr.push(vec[1]);
@@ -29,6 +34,11 @@ export function hasSignChange(a: number, b: number) {
     return a >= 0 && b < 0 || a < 0 && b >= 0;
 }
 
+export function sign(num: number) {
+    return num > 0.0 ? 1.0 : -1.0;
+}
+
+/** Returns the triangles that make up a list of squares (2 per square). */
 export function getTrianglesFromSquares(squares: Square[]): Triangle[] {
     const triangles: Triangle[] = [];
     for (let square of squares) {
@@ -40,10 +50,7 @@ export function getTrianglesFromSquares(squares: Square[]): Triangle[] {
     return triangles;
 }
 
-export function sign(num: number) {
-    return num > 0.0 ? 1.0 : -1.0;
-}
-
+/** Mutable representation of a triangle (three points). */
 export class Triangle {
     constructor(
         public a: vec3,
@@ -82,11 +89,13 @@ export class Triangle {
     }
 }
 
+/** Mutable representation of a square (four points). */
 export class Square {
-    a: vec3;
-    b: vec3;
-    c: vec3;
-    d: vec3;
+    // Note that while the reference is readonly, the values are not...
+    readonly a: vec3;
+    readonly b: vec3;
+    readonly c: vec3;
+    readonly d: vec3;
 
     constructor({ a, b, c, d }: { a: vec3; b: vec3; c: vec3; d: vec3 }) {
         this.a = a;
