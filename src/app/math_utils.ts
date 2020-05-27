@@ -62,7 +62,8 @@ export class Triangle {
     }
 
     clone() {
-        return new Triangle(vec3.clone(this.a), vec3.clone(this.b), vec3.clone(this.c));
+        return new Triangle(
+            vec3.clone(this.a), vec3.clone(this.b), vec3.clone(this.c));
     }
 
     translate(trans: vec3): Triangle {

@@ -2,6 +2,9 @@ import { vec3, mat4 } from 'src/app/gl-matrix.js';
 import { makeVec } from 'src/app/math_utils';
 import { CONTROLS, Key } from 'src/app/controls';
 
+const PAN_DELTA = 0.025;
+const ORBIT_ANGLE = Math.PI / 24;
+const ZOOM_DELTA = 0.2;
 
 export class Camera {
     cameraPosition: vec3;
@@ -47,13 +50,12 @@ export class Camera {
         }
     }
 
-    ORBIT_ANGLE = Math.PI / 24;
     orbitRight() {
         vec3.rotateY(
             this.cameraPosition,
             this.cameraPosition,
             this.target,
-            this.ORBIT_ANGLE);
+            ORBIT_ANGLE);
     }
 
     orbitLeft() {
@@ -61,39 +63,37 @@ export class Camera {
             this.cameraPosition,
             this.cameraPosition,
             this.target,
-            -this.ORBIT_ANGLE);
+            -ORBIT_ANGLE);
     }
 
-    PAN_DELTA = 0.025;
     panUp() {
-        this.cameraPosition[1] += this.PAN_DELTA;
-        this.target[1] += this.PAN_DELTA;
+        this.cameraPosition[1] += PAN_DELTA;
+        this.target[1] += PAN_DELTA;
     }
 
     panDown() {
-        this.cameraPosition[1] -= this.PAN_DELTA;
-        this.target[1] -= this.PAN_DELTA;
+        this.cameraPosition[1] -= PAN_DELTA;
+        this.target[1] -= PAN_DELTA;
     }
 
     panLeft() {
-        this.cameraPosition[0] -= this.PAN_DELTA;
-        this.target[0] -= this.PAN_DELTA;
+        this.cameraPosition[0] -= PAN_DELTA;
+        this.target[0] -= PAN_DELTA;
     }
 
     panRight() {
-        this.cameraPosition[0] += this.PAN_DELTA;
-        this.target[0] += this.PAN_DELTA;
+        this.cameraPosition[0] += PAN_DELTA;
+        this.target[0] += PAN_DELTA;
     }
 
-    ZOOM_DELTA = 0.2;
     zoomIn() {
         if (this.cameraPosition[2] <= 2) {
             return;
         }
-        this.cameraPosition[2] -= this.ZOOM_DELTA;
+        this.cameraPosition[2] -= ZOOM_DELTA;
     }
 
     zoomOut() {
-        this.cameraPosition[2] += this.ZOOM_DELTA;
+        this.cameraPosition[2] += ZOOM_DELTA;
     }
 }
