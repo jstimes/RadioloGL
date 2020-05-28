@@ -4,6 +4,9 @@ import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares } fro
 import { StandardRenderable } from 'src/app/standard_renderable';
 import { Volume, Slice, Row } from 'src/app/processing/volume';
 
+// TODO - consider pre-loading images before using image processor stuff to 
+// avoid all Promises/async stuff that isn't really relevant to processing.
+
 export interface ProcessParams {
     // TODO - avg when != to 1?
     /** 
@@ -100,84 +103,29 @@ export async function getDenseMeshFromStack(
     return renderable;
 }
 
-async function getVolume(stackImagePaths: string[], params: ProcessParams):
-    Promise<Volume> {
-
-    const volume = new Volume();
-    const slicePromises = [];
-    stackImagePaths.forEach((path: string) => {
-        slicePromises.push(getSlice(path, params));
-    });
-    const slices = await Promise.all(slicePromises);
-    slices.forEach((slice: Slice) => {
-        volume.z.push(slice);
-    });
-    return volume;
-}
-
-function getSlice(src: string, params: ProcessParams): Promise<Slice> {
-    const { sampleRate, pixelIntensityThreshold } = params;
-    return new Promise((resolve) => {
-        const image = new Image();
-        image.crossOrigin = "anonymous";
-        image.onload = () => {
-            const cells = image.width / sampleRate;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = image.width;
-            canvas.height = image.height;
-            canvas.getContext('2d').drawImage(
-                image, 0, 0, image.width, image.height);
-
-            const slice: Slice = {
-                y: [],
-            };
-            for (let y = 0; y < cells; y++) {
-                const row: Row = {
-                    x: [],
-                };
-                for (let x = 0; x < cells; x++) {
-                    const pt = { x: x * sampleRate, y: y * sampleRate };
-                    const rgba =
-                        canvas.getContext('2d')
-                            .getImageData(pt.x, pt.y, 1, 1).data;
-                    const rgb = [rgba[0] / 256, rgba[1] / 256, rgba[2] / 256];
-                    const rgbLength =
-                        Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]);
-                    const isAboveThreshold =
-                        rgbLength > pixelIntensityThreshold;
-                    row.x.push(isAboveThreshold);
-                }
-                slice.y.push(row);
-            }
-            resolve(slice);
-        };
-        image.src = src;
-    });
-}
-
 /** 
- * Generates a 2d mesh of a single image, only contianing points where  each 
+ * Generates a 2d mesh of a single image, only contianing points where each 
  * corner of a square is above the threshold. 
  */
 export async function getMeshFromImage(
     gl: WebGLRenderingContext, sliceImagePath: string, params: ProcessParams):
     Promise<StandardRenderable> {
 
-    // const triangles = await processImage(gl, sliceImagePath, params);
-    const slice = await getSlice(sliceImagePath, params);
+    const slice = await processSlice(sliceImagePath, params);
 
     const triangles: Triangle[] = [];
     const { sampleRate } = params;
-    const width = (slice.y[0].x.length) * sampleRate;
-    const height = (slice.y.length) * sampleRate;
+    const samplesWidth = slice.y[0].x.length;
+    const samplesHeight = slice.y.length;
+    const width = samplesWidth * sampleRate;
+    const height = samplesHeight * sampleRate;
     const z = 1.0;
     const toGlPt = (imagePt: Point): vec3 => {
         return makeVec(
             imagePt.x * (2 / width) - 1, imagePt.y * (2 / height) - 1, z);
     };
-    for (let y = 1; y < height; y++) {
-        for (let x = 1; x < width; x++) {
+    for (let y = 1; y < samplesHeight; y++) {
+        for (let x = 1; x < samplesWidth; x++) {
             const isPtAbove = slice.y[y].x[x];
             const isLeftPtAbove = slice.y[y].x[x - 1];
             const isUpPtAbove = slice.y[y - 1].x[x];
@@ -212,17 +160,32 @@ export async function getMeshFromImage(
     return renderable;
 }
 
-function processImage(
-    gl: WebGLRenderingContext, src: string, params: ProcessParams):
-    Promise<Triangle[]> {
+async function getVolume(stackImagePaths: string[], params: ProcessParams):
+    Promise<Volume> {
 
+    const volume = new Volume();
+    const slicePromises = [];
+    stackImagePaths.forEach((path: string) => {
+        slicePromises.push(processSlice(path, params));
+    });
+    const slices = await Promise.all(slicePromises);
+    slices.forEach((slice: Slice) => {
+        volume.z.push(slice);
+    });
+    return volume;
+}
+
+/** 
+ * Samples a single image, specified by `src`, according to `params`, returning
+ * a 2D grid of the results of each sample section.
+ */
+function processSlice(src: string, params: ProcessParams): Promise<Slice> {
     const { sampleRate, pixelIntensityThreshold } = params;
     return new Promise((resolve) => {
         const image = new Image();
         image.crossOrigin = "anonymous";
         image.onload = () => {
-            const delta = 4;
-            const cells = image.width / delta;
+            const cells = image.width / sampleRate;
 
             const canvas = document.createElement('canvas');
             canvas.width = image.width;
@@ -230,67 +193,28 @@ function processImage(
             canvas.getContext('2d').drawImage(
                 image, 0, 0, image.width, image.height);
 
-            const grid: boolean[][] = [];
+            const slice: Slice = {
+                y: [],
+            };
             for (let y = 0; y < cells; y++) {
-                const row = [];
+                const row: Row = {
+                    x: [],
+                };
                 for (let x = 0; x < cells; x++) {
-                    const pt = { x: x * delta, y: y * delta };
-
+                    const pt = { x: x * sampleRate, y: y * sampleRate };
                     const rgba =
                         canvas.getContext('2d')
                             .getImageData(pt.x, pt.y, 1, 1).data;
-                    const rgb = [rgba[0] / 256, rgba[1] / 256, rgba[2] / 256];
+                    const rgb = [rgba[0] / 255, rgba[1] / 255, rgba[2] / 255];
                     const rgbLength =
                         Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]);
                     const isAboveThreshold =
                         rgbLength > pixelIntensityThreshold;
-                    row.push(isAboveThreshold);
-
+                    row.x.push(isAboveThreshold);
                 }
-                grid.push(row);
+                slice.y.push(row);
             }
-
-            const z = 1.0;
-            const toGlPt = (imagePt: Point): vec3 => {
-                return makeVec(
-                    imagePt.x * (2 / image.width) - 1,
-                    imagePt.y * (2 / image.height) - 1,
-                    z);
-            };
-            const triangles: Triangle[] = [];
-            for (let y = 1; y < cells; y++) {
-                for (let x = 1; x < cells; x++) {
-                    const isPtAbove = grid[y][x];
-                    const isLeftPtAbove = grid[y][x - 1];
-                    const isUpPtAbove = grid[y - 1][x];
-                    const isLeftUpPtAbove = grid[y - 1][x - 1];
-
-                    const imagePt = { x: x * delta, y: y * delta };
-                    const imagePtLeft = { x: (x - 1) * delta, y: y * delta };
-                    const imagePtUp = { x: x * delta, y: (y - 1) * delta };
-                    const imagePtLeftUp =
-                        { x: (x - 1) * delta, y: (y - 1) * delta };
-
-                    const glPt = toGlPt(imagePt);
-                    const glLeftPt = toGlPt(imagePtLeft);
-                    const glUpPt = toGlPt(imagePtUp);
-                    const glLeftUpPt = toGlPt(imagePtLeftUp);
-
-                    if (!isPtAbove && !isLeftPtAbove
-                        && !isUpPtAbove && !isLeftPtAbove) {
-                        continue;
-                    }
-                    if (isPtAbove && isLeftPtAbove
-                        && isUpPtAbove && isLeftPtAbove) {
-                        const upperLeft =
-                            new Triangle(glLeftUpPt, glLeftPt, glUpPt);
-                        const lowerRight = new Triangle(glLeftPt, glPt, glUpPt);
-                        triangles.push(upperLeft);
-                        triangles.push(lowerRight);
-                    }
-                }
-            }
-            resolve(triangles);
+            resolve(slice);
         };
         image.src = src;
     });

@@ -69,7 +69,7 @@ export class AppComponent {
   private async loadStack(): Promise<void> {
     const stackImagePaths = this.getStackImagePaths();
     this.numTextures = stackImagePaths.length;
-    const useImageMesh = false;
+    const useImageMesh = true;
     const useDenseMesh = false;
 
     const meshPromises: Promise<StandardRenderable>[] = [];
