@@ -70,7 +70,10 @@ export async function getDenseMeshFromStack(
                     volumePtRightDownFront,
                     volumePtRightTopFront,
                 ];
-                if (volume.isPts(allCubePts)) {
+                const shouldCubeBeInMesh =
+                    volume.arePointsAboveThreshold(
+                        allCubePts, pixelIntensityThreshold);
+                if (shouldCubeBeInMesh) {
                     const glPts = allCubePts.map(toGlPt);
                     const top = new Square(
                         { a: glPts[0], b: glPts[4], c: glPts[7], d: glPts[3] });
@@ -180,7 +183,7 @@ async function getVolume(stackImagePaths: string[], params: ProcessParams):
  * a 2D grid of the results of each sample section.
  */
 function processSlice(src: string, params: ProcessParams): Promise<Slice> {
-    const { sampleRate, pixelIntensityThreshold } = params;
+    const { sampleRate } = params;
     return new Promise((resolve) => {
         const image = new Image();
         image.crossOrigin = "anonymous";
@@ -208,9 +211,7 @@ function processSlice(src: string, params: ProcessParams): Promise<Slice> {
                     const rgb = [rgba[0] / 255, rgba[1] / 255, rgba[2] / 255];
                     const rgbLength =
                         Math.sqrt(rgb[0] * rgb[0] + rgb[1] * rgb[1] + rgb[2] * rgb[2]);
-                    const isAboveThreshold =
-                        rgbLength > pixelIntensityThreshold;
-                    row.x.push(isAboveThreshold);
+                    row.x.push(rgbLength);
                 }
                 slice.y.push(row);
             }

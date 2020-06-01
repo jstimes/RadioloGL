@@ -9,18 +9,18 @@ import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares } fro
 export class Volume {
     readonly z: Slice[] = [];
 
-    isPt(pt: vec3): boolean {
-        return this.z[pt[2]].y[pt[1]].x[pt[0]];
+    isPointAboveThreshold(point: vec3, threshold: number): boolean {
+        return this.z[point[2]].y[point[1]].x[point[0]] > threshold;
     }
 
-    isPts(pts: vec3[]): boolean {
-        return pts.every((pt) => {
-            return this.isPt(pt);
+    arePointsAboveThreshold(points: vec3[], threshold: number): boolean {
+        return points.every((point) => {
+            return this.isPointAboveThreshold(point, threshold);
         });
     }
 }
 
-/** Collection of all sampling rows of an entire image. */
+/** Collection of all sampled rows of an entire image. */
 export interface Slice {
     readonly y: Row[];
 }
@@ -28,8 +28,9 @@ export interface Slice {
 /** Represents a row of samplings of a single image. */
 export interface Row {
     /** 
-     * Each element represents whether that sampled section of the row  is 
-     * above the rendering threshold.
+     * Each element represents the color intesity at a certain point of the row.
+     * 
+     * The corresponding image coordinate is the index * sampleRate.
      */
-    readonly x: boolean[];
+    readonly x: number[];
 }

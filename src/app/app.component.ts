@@ -10,6 +10,9 @@ import { TextureRenderable } from 'src/app/texture_renderable';
 import { STANDARD_PROGRAM } from 'src/app/standard_program';
 import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/image_processor';
 
+/** Use only 2 slices of the stack for faster processing when testing. */
+const IS_TESTING = true;
+
 const HEIGHT = 800;
 const WIDTH = 1200;
 const COLOR_INTENSITY_DELTA = .005;
@@ -69,8 +72,8 @@ export class AppComponent {
   private async loadStack(): Promise<void> {
     const stackImagePaths = this.getStackImagePaths();
     this.numTextures = stackImagePaths.length;
-    const useImageMesh = true;
-    const useDenseMesh = false;
+    const useImageMesh = false;
+    const useDenseMesh = true;
 
     const meshPromises: Promise<StandardRenderable>[] = [];
     stackImagePaths.forEach((imagePath: string) => {
@@ -142,6 +145,14 @@ export class AppComponent {
       const imagePath = `./assets/imgs/${path}/${prefix}${i + start}.png`;
       imagePaths.push(imagePath);
     }
+
+    // TESTING
+    if (IS_TESTING) {
+      const testImages = 2;
+      imagePaths.splice(testImages, imagePaths.length - testImages);
+    }
+    // TESTING
+
     return imagePaths;
   }
 
