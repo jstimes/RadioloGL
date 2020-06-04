@@ -60,7 +60,7 @@ export class StandardRenderable {
         }
     }
 
-    render(gl: WebGLRenderingContext, ext: ANGLE_instanced_arrays) {
+    render(gl: WebGL2RenderingContext) {
         // Projection & view matrices uniform is expected to be set already.
         const modelMatrix = mat4.create();
         mat4.rotate(modelMatrix, modelMatrix, this.yRotation, [0, 1, 0]);
@@ -92,7 +92,7 @@ export class StandardRenderable {
                 offset);
             gl.enableVertexAttribArray(
                 STANDARD_PROGRAM.attribLocations.vertexPosition);
-            ext.vertexAttribDivisorANGLE(
+            gl.vertexAttribDivisor(
                 STANDARD_PROGRAM.attribLocations.vertexPosition, 0);
         }
 
@@ -114,7 +114,7 @@ export class StandardRenderable {
                 offset);
             gl.enableVertexAttribArray(
                 STANDARD_PROGRAM.attribLocations.vertexNormal);
-            ext.vertexAttribDivisorANGLE(
+            gl.vertexAttribDivisor(
                 STANDARD_PROGRAM.attribLocations.vertexNormal, 0);
         }
 

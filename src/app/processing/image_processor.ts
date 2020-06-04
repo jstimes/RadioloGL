@@ -1,8 +1,9 @@
 import { vec3, vec4, mat4 } from 'src/app/gl-matrix.js';
 import { TextureRenderable } from 'src/app/texture_renderable';
-import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares, getCubeFacesFromVertices } from 'src/app/math_utils';
+import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares, getCubeFacesFromVertices, makeVec4 } from 'src/app/math_utils';
 import { StandardRenderable } from 'src/app/standard_renderable';
 import { Volume, Slice, Row } from 'src/app/processing/volume';
+import { CubeMeshRenderable } from '../cube_mesh_renderable';
 
 // TODO - consider pre-loading images before using image processor stuff to 
 // avoid all Promises/async stuff that isn't really relevant to processing.
@@ -76,31 +77,32 @@ export async function getDenseMeshFromStack(
                 const shouldCubeBeInMesh =
                     volume.arePointsAboveThreshold(
                         allCubePts, pixelIntensityThreshold);
-                if (shouldCubeBeInMesh) {
-                    const cubeFaces = getCubeFacesFromVertices({
-                        leftTopFront,
-                        leftBottomFront,
-                        rightBottomFront,
-                        rightTopFront,
-                        rightTopBack,
-                        rightBottomBack,
-                        leftBottomBack,
-                        leftTopBack,
-                    });
-
-                    const squares =
-                        cubeFaces.map((square) => {
-                            return new Square({
-                                a: toGlPt(square.a),
-                                b: toGlPt(square.b),
-                                c: toGlPt(square.c),
-                                d: toGlPt(square.d),
-                            });
-                        });
-                    getTrianglesFromSquares(squares).forEach(tri => {
-                        triangles.push(tri);
-                    });
+                if (!shouldCubeBeInMesh) {
+                    continue;
                 }
+                const cubeFaces = getCubeFacesFromVertices({
+                    leftTopFront,
+                    leftBottomFront,
+                    rightBottomFront,
+                    rightTopFront,
+                    rightTopBack,
+                    rightBottomBack,
+                    leftBottomBack,
+                    leftTopBack,
+                });
+
+                const squares =
+                    cubeFaces.map((square) => {
+                        return new Square({
+                            a: toGlPt(square.a),
+                            b: toGlPt(square.b),
+                            c: toGlPt(square.c),
+                            d: toGlPt(square.d),
+                        });
+                    });
+                getTrianglesFromSquares(squares).forEach(tri => {
+                    triangles.push(tri);
+                });
             }
         }
     }
@@ -111,6 +113,111 @@ export async function getDenseMeshFromStack(
     renderable.initBuffers(gl);
 
     return renderable;
+}
+
+/** 
+ * Returns a full 3D volume of the stack using instanced cubes where each cube's
+ * transparency is based on its color intensity.
+ */
+export async function getSemiTransparentMeshFromStack(
+    gl: WebGLRenderingContext,
+    stackImagePaths: string[],
+    params: ProcessParams): Promise<CubeMeshRenderable[]> {
+
+    const { sampleRate, pixelIntensityThreshold } = params;
+    const volume = await getVolume(stackImagePaths, params);
+
+    console.log("Processed images, generating mesh points...");
+
+    const samplesWidth = volume.z[0].y[0].x.length;
+    const samplesHeight = volume.z[0].y.length;
+    const imageWidth = samplesWidth * sampleRate;
+    const imageHeight = samplesHeight * sampleRate;
+    const stackSize = volume.z.length;
+    const zOffset = .5;
+
+    let models = [];
+    let colors = [];
+    const renderables: CubeMeshRenderable[] = [];
+    for (let z = 1; z < stackSize; z++) {
+        for (let y = 1; y < samplesHeight; y++) {
+            for (let x = 1; x < samplesWidth; x++) {
+                const volumePtRightTopFront = makeVec(x, y, z);
+                const volumePtLeftTopFront = makeVec(x - 1, y, z);
+                const volumePtLeftDownFront = makeVec(x - 1, y - 1, z);
+                const volumePtRightDownFront = makeVec(x, y - 1, z);
+                const volumePtLeftTopBack = makeVec(x - 1, y, z - 1);
+                const volumePtLeftDownBack = makeVec(x - 1, y - 1, z - 1);
+                const volumePtRightDownBack = makeVec(x, y - 1, z - 1);
+                const volumePtRightTopBack = makeVec(x, y, z - 1);
+
+                const allCubePts = [
+                    volumePtLeftTopBack,
+                    volumePtLeftDownBack,
+                    volumePtRightDownBack,
+                    volumePtRightTopBack,
+                    volumePtLeftTopFront,
+                    volumePtLeftDownFront,
+                    volumePtRightDownFront,
+                    volumePtRightTopFront,
+                ];
+                const shouldCubeBeInMesh =
+                    volume.arePointsAboveThreshold(
+                        allCubePts, pixelIntensityThreshold);
+                if (!shouldCubeBeInMesh) {
+                    continue;
+                }
+                const halfSampleRate = sampleRate / 2;
+                const maxDepth = stackSize * zOffset;
+                // Cube's center position in image coordinates.
+                const cubeCenterStackCoords =
+                    makeVec(
+                        x * sampleRate - halfSampleRate,
+                        y * sampleRate - halfSampleRate,
+                        z * zOffset - zOffset / 2);
+                // Cube's center translated to the region:
+                //    x: [-1, 1]
+                //    y: [-1, 1]
+                //    z: [0, <maxDepth>]
+                const cubeCenterGlCoords =
+                    makeVec(
+                        cubeCenterStackCoords[0] * (2 / imageWidth) - 1,
+                        cubeCenterStackCoords[1] * (2 / imageHeight) - 1,
+                        cubeCenterStackCoords[2] * -1);
+
+                const model = mat4.create();
+                mat4.translate(model, model, cubeCenterGlCoords);
+                const xScale = (2 / samplesWidth);
+                const yScale = (2 / samplesHeight);
+                const zScale = 1;
+                mat4.scale(model, model, makeVec(xScale, yScale, zScale));
+                models.push(model);
+
+                const averageColorIntensity =
+                    allCubePts.map((volumeIndex) => {
+                        return volume.z[volumeIndex[2]]
+                            .y[volumeIndex[1]]
+                            .x[volumeIndex[0]];
+                    })
+                        .reduce((totalIntensity: number, currentIntensity: number) => {
+                            return totalIntensity + currentIntensity;
+                        })
+                    / allCubePts.length;
+                const color = makeVec4(
+                    averageColorIntensity,
+                    averageColorIntensity,
+                    averageColorIntensity,
+                    averageColorIntensity);
+                colors.push(color);
+            }
+        }
+        const cubeMesh = new CubeMeshRenderable(gl, models, colors);
+        renderables.push(cubeMesh);
+        models = [];
+        colors = [];
+    }
+
+    return renderables;
 }
 
 /** 

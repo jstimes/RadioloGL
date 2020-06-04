@@ -8,9 +8,9 @@ import { StandardRenderable } from './standard_renderable';
 import { TEXTURE_PROGRAM } from 'src/app/texture_program';
 import { TextureRenderable } from 'src/app/texture_renderable';
 import { STANDARD_PROGRAM } from 'src/app/standard_program';
-import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/image_processor';
+import { getDenseMeshFromStack, getMeshFromImage, getSemiTransparentMeshFromStack } from 'src/app/processing/image_processor';
 import { CubeMeshRenderable } from './cube_mesh_renderable';
-import { INSTANCED_PROGRAM } from './instanced_program.js';
+import { INSTANCED_PROGRAM } from './instanced_program';
 
 /** Use only 2 slices of the stack for faster processing when testing. */
 const IS_TESTING = true;
@@ -23,15 +23,15 @@ const RENDER_IMAGES = false;
  */
 const USE_IMAGE_MESH = false;
 /** Whether to generate and render an opaque 3D mesh from the stack. */
-const USE_DENSE_MESH = true;
+const USE_DENSE_MESH = false;
 /** 
  * Whether to generate and render a semi-transparent mesh from the stack
  * where each voxel's transparency is based on the sampled color intensity.
  */
-const USE_SEMI_TRANSPARENT_MESH = false;
+const USE_SEMI_TRANSPARENT_MESH = true;
 
-const HEIGHT = 800;
-const WIDTH = 1200;
+const HEIGHT = 600;
+const WIDTH = 800;
 const COLOR_INTENSITY_DELTA = .005;
 
 @Component({
@@ -42,8 +42,7 @@ const COLOR_INTENSITY_DELTA = .005;
 export class AppComponent {
   private readonly title = 'RadioloGL';
   private canvas: HTMLCanvasElement;
-  private gl: WebGLRenderingContext;
-  private instancingExt: ANGLE_instanced_arrays;
+  private gl: WebGL2RenderingContext;
   private camera: Camera;
 
   /** 
@@ -71,7 +70,7 @@ export class AppComponent {
     this.canvas.setAttribute('height', `${HEIGHT}`);
 
     // `alpha: false` asks WebGL to use a backbuffer with no alpha (RGB only).
-    this.gl = this.canvas.getContext('webgl', { alpha: false });
+    this.gl = this.canvas.getContext('webgl2', { alpha: false });
 
     // Only continue if WebGL is available and working
     if (this.gl === null) {
@@ -79,11 +78,6 @@ export class AppComponent {
         `Unable to initialize WebGL. Your browser or machine may not support` +
         ` it.`);
       return;
-    }
-
-    this.instancingExt = this.gl.getExtension('ANGLE_instanced_arrays');
-    if (!this.instancingExt) {
-      return alert('need ANGLE_instanced_arrays');
     }
 
     TEXTURE_PROGRAM.init(this.gl);
@@ -118,13 +112,17 @@ export class AppComponent {
       const mesh = await getDenseMeshFromStack(
         this.gl, stackImagePaths, this.imageProcessParams);
       this.standardRenderables.push(mesh);
+    } else if (USE_SEMI_TRANSPARENT_MESH) {
+      const renderables = await getSemiTransparentMeshFromStack(
+        this.gl, stackImagePaths, this.imageProcessParams);
+      this.cubeMeshRenderables = renderables;
     }
   }
 
   private gameLoop(elapsedMs: number): void {
     this.update(elapsedMs);
     this.render();
-    window.requestAnimationFrame((elapsedMs) => { this.gameLoop(elapsedMs); });
+    requestAnimationFrame((elapsedMs) => { this.gameLoop(elapsedMs); });
   }
 
   private update(elapsedMs: number): void {
@@ -237,7 +235,7 @@ export class AppComponent {
         TEXTURE_PROGRAM.uniformLocations.viewMatrix,
         false,
         viewMatrix);
-      this.textureRenderables[this.textureIndex].render(gl, this.instancingExt);
+      this.textureRenderables[this.textureIndex].render(gl);
     }
 
     if (USE_IMAGE_MESH || USE_DENSE_MESH) {
@@ -254,8 +252,7 @@ export class AppComponent {
         STANDARD_PROGRAM.uniformLocations.cameraPosition,
         this.camera.cameraPosition);
       if (this.textureIndex < this.standardRenderables.length) {
-        this.standardRenderables[this.textureIndex]
-          .render(gl, this.instancingExt);
+        this.standardRenderables[this.textureIndex].render(gl);
       }
     }
 
@@ -269,9 +266,9 @@ export class AppComponent {
         INSTANCED_PROGRAM.uniformLocations.viewMatrix,
         false,
         viewMatrix);
-      this.cubeMeshRenderables.forEach((renderable) => {
-        renderable.render(gl, this.instancingExt);
-      });
+      for (let i = this.cubeMeshRenderables.length - 1; i >= 0; i--) {
+        this.cubeMeshRenderables[i].render(gl);
+      }
     }
   }
 

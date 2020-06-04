@@ -2,6 +2,10 @@ import { Square, makeVec, getPointsArrayFromSquares, getCubeFacesFromVertices } 
 import { mat4, vec3, vec4 } from './gl-matrix.js';
 import { INSTANCED_PROGRAM } from './instanced_program';
 
+const ENTRIES_PER_COLOR = 4;
+const ENTRIES_PER_MATRIX = 16;
+const BYTES_PER_FLOAT = 4;
+
 /** 
  * A mesh composed of instanced cubes where each component is defined by
  * it's translation and color.
@@ -10,7 +14,7 @@ import { INSTANCED_PROGRAM } from './instanced_program';
  */
 export class CubeMeshRenderable {
 
-    private numInstances = 5;
+    private readonly numInstances;
     private numVertices: number;
     private matrices: Float32Array[];
     private modelMatrixData: Float32Array;
@@ -18,21 +22,27 @@ export class CubeMeshRenderable {
     private colorBuffer: WebGLBuffer;
     private positionBuffer: WebGLBuffer;
 
-    // constructor(modelMatrices: mat4[], colors: vec4[]) {
+    constructor(gl: WebGLRenderingContext, modelMatrices: mat4[], colors: vec4[]) {
+        if (modelMatrices.length !== colors.length) {
+            throw new Error(`Expected same number of models and colors`);
+        }
+        this.numInstances = modelMatrices.length;
 
-    // }
-
-    initBuffers(gl: WebGLRenderingContext): void {
-        this.modelMatrixData = new Float32Array(this.numInstances * 16);
+        this.modelMatrixData = new Float32Array(
+            this.numInstances * ENTRIES_PER_MATRIX);
         this.matrices = [];
         for (let i = 0; i < this.numInstances; ++i) {
-            const byteOffsetToMatrix = i * 16 * 4;
-            const numFloatsForView = 16;
+            const byteOffsetToMatrix = i * ENTRIES_PER_MATRIX * BYTES_PER_FLOAT;
+            const numFloatsForView = ENTRIES_PER_MATRIX;
             const newMatrix = new Float32Array(
                 this.modelMatrixData.buffer,
                 byteOffsetToMatrix,
                 numFloatsForView);
-            newMatrix[0] = newMatrix[5] = newMatrix[10] = newMatrix[15] = 1;
+
+            const modelMatrix = modelMatrices[i];
+            for (let j = 0; j < ENTRIES_PER_MATRIX; j++) {
+                newMatrix[j] = modelMatrix[j];
+            }
             this.matrices.push(newMatrix);
         }
         this.modelMatrixBuffer = gl.createBuffer();
@@ -42,17 +52,19 @@ export class CubeMeshRenderable {
 
         this.colorBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
+        const colorData = new Float32Array(
+            this.numInstances * ENTRIES_PER_COLOR);
+        for (let i = 0; i < this.numInstances; i++) {
+            const color = colors[i];
+            for (let j = 0; j < ENTRIES_PER_COLOR; j++) {
+                colorData[i + j] = color[j];
+            }
+        }
         gl.bufferData(gl.ARRAY_BUFFER,
-            new Float32Array([
-                0, 1, 0, .1,
-                0, 1, 1, .1,
-                0, 0, 1, .1,
-                1, 1, 1, .1,
-                1, 1, 1, .1,
-            ]),
+            colorData,
             gl.STATIC_DRAW);
 
-        const size = 0.5;
+        const size = 1;
         const leftTopFront = makeVec(-size, size, size);
         const leftBottomFront = makeVec(-size, -size, size);
         const rightBottomFront = makeVec(size, -size, size);
@@ -79,23 +91,16 @@ export class CubeMeshRenderable {
     }
 
     update(elapsedMs: number): void {
-        const seconds = elapsedMs / 1000;
-        this.matrices.forEach((matrix, index) => {
-            mat4.translate(
-                matrix,
-                mat4.create(),
-                makeVec(-0.5 + index * 0.25, 0, -index));
-            mat4.rotateZ(matrix, matrix, seconds * (0.1 + 0.1 * index));
-        });
+        // No-op.
     }
 
-    render(gl: WebGLRenderingContext, ext: ANGLE_instanced_arrays): void {
+    render(gl: WebGL2RenderingContext): void {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         {
             const positionLoc = INSTANCED_PROGRAM.attribLocations.vertexPosition;
             gl.enableVertexAttribArray(positionLoc);
             gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
-            ext.vertexAttribDivisorANGLE(positionLoc, 0);
+            gl.vertexAttribDivisor(positionLoc, 0);
         }
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.modelMatrixBuffer);
@@ -123,7 +128,7 @@ export class CubeMeshRenderable {
                 offset,
             );
             // this line says this attribute only changes for each 1 instance
-            ext.vertexAttribDivisorANGLE(loc, 1);
+            gl.vertexAttribDivisor(loc, 1);
         }
 
         // set attribute for color
@@ -132,9 +137,9 @@ export class CubeMeshRenderable {
         gl.enableVertexAttribArray(colorLoc);
         gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
         // this line says this attribute only changes for each 1 instance
-        ext.vertexAttribDivisorANGLE(colorLoc, 1);
+        gl.vertexAttribDivisor(colorLoc, 1);
 
-        ext.drawArraysInstancedANGLE(
+        gl.drawArraysInstanced(
             gl.TRIANGLES,
             // offset
             0,
