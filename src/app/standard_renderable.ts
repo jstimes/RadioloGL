@@ -60,8 +60,7 @@ export class StandardRenderable {
         }
     }
 
-    render(gl: WebGLRenderingContext) {
-
+    render(gl: WebGLRenderingContext, ext: ANGLE_instanced_arrays) {
         // Projection & view matrices uniform is expected to be set already.
         const modelMatrix = mat4.create();
         mat4.rotate(modelMatrix, modelMatrix, this.yRotation, [0, 1, 0]);
@@ -93,6 +92,8 @@ export class StandardRenderable {
                 offset);
             gl.enableVertexAttribArray(
                 STANDARD_PROGRAM.attribLocations.vertexPosition);
+            ext.vertexAttribDivisorANGLE(
+                STANDARD_PROGRAM.attribLocations.vertexPosition, 0);
         }
 
         // Tell WebGL how to pull out the normals from
@@ -113,6 +114,8 @@ export class StandardRenderable {
                 offset);
             gl.enableVertexAttribArray(
                 STANDARD_PROGRAM.attribLocations.vertexNormal);
+            ext.vertexAttribDivisorANGLE(
+                STANDARD_PROGRAM.attribLocations.vertexNormal, 0);
         }
 
         // Tell WebGL to use our program when drawing

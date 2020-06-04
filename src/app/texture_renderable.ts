@@ -20,7 +20,7 @@ export class TextureRenderable {
         this.initBuffers(gl);
     }
 
-    render(gl: WebGLRenderingContext) {
+    render(gl: WebGLRenderingContext, ext: ANGLE_instanced_arrays) {
         const modeMatrix = mat4.create();
 
         // Tell WebGL how to pull out the positions from the position
@@ -47,6 +47,8 @@ export class TextureRenderable {
                 offset);
             gl.enableVertexAttribArray(
                 TEXTURE_PROGRAM.attribLocations.vertexPosition);
+            ext.vertexAttribDivisorANGLE(
+                TEXTURE_PROGRAM.attribLocations.vertexPosition, 0);
         }
 
         // Tell webgl how to pull out the texture coordinates from buffer
@@ -67,6 +69,8 @@ export class TextureRenderable {
                 num, type, normalize, stride, offset);
             gl.enableVertexAttribArray(
                 TEXTURE_PROGRAM.attribLocations.textureCoord);
+            ext.vertexAttribDivisorANGLE(
+                TEXTURE_PROGRAM.attribLocations.textureCoord, 0);
         }
 
         // Tell WebGL which indices to use to index the vertices

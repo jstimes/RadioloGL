@@ -88,6 +88,21 @@ export function getCubeFacesFromVertices(vertices: {
     return [frontFace, backFace, leftFace, rightFace, bottomFace, topFace];
 }
 
+/** 
+ * Generates the points to be put into a WebGL buffer which form the triangles 
+ * derived from the input squares. 
+ */
+export function getPointsArrayFromSquares(squares: Square[]): Float32Array {
+    const triangles = getTrianglesFromSquares(squares);
+    const points: number[] = [];
+    for (const triangle of triangles) {
+        addVec(points, triangle.a);
+        addVec(points, triangle.b);
+        addVec(points, triangle.c);
+    }
+    return new Float32Array(points);
+}
+
 /** Returns the triangles that make up a list of squares (2 per square). */
 export function getTrianglesFromSquares(squares: Square[]): Triangle[] {
     const triangles: Triangle[] = [];

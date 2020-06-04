@@ -9,6 +9,8 @@ import { TEXTURE_PROGRAM } from 'src/app/texture_program';
 import { TextureRenderable } from 'src/app/texture_renderable';
 import { STANDARD_PROGRAM } from 'src/app/standard_program';
 import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/image_processor';
+import { CubeMeshRenderable } from './cube_mesh_renderable';
+import { INSTANCED_PROGRAM } from './instanced_program.js';
 
 /** Use only 2 slices of the stack for faster processing when testing. */
 const IS_TESTING = true;
@@ -20,8 +22,13 @@ const RENDER_IMAGES = false;
  * Mainly just for verifying image processing behavior.
  */
 const USE_IMAGE_MESH = false;
-/** Whether to generate and render a 3D mesh from the stack. */
+/** Whether to generate and render an opaque 3D mesh from the stack. */
 const USE_DENSE_MESH = true;
+/** 
+ * Whether to generate and render a semi-transparent mesh from the stack
+ * where each voxel's transparency is based on the sampled color intensity.
+ */
+const USE_SEMI_TRANSPARENT_MESH = false;
 
 const HEIGHT = 800;
 const WIDTH = 1200;
@@ -36,6 +43,7 @@ export class AppComponent {
   private readonly title = 'RadioloGL';
   private canvas: HTMLCanvasElement;
   private gl: WebGLRenderingContext;
+  private instancingExt: ANGLE_instanced_arrays;
   private camera: Camera;
 
   /** 
@@ -50,6 +58,8 @@ export class AppComponent {
   private textureRenderables: TextureRenderable[] = [];
 
   private standardRenderables: StandardRenderable[] = [];
+  private cubeMeshRenderables: CubeMeshRenderable[] = [];
+
   private imageProcessParams = {
     sampleRate: 2,
     pixelIntensityThreshold: .85,
@@ -60,7 +70,8 @@ export class AppComponent {
     this.canvas.setAttribute('width', `${WIDTH}`);
     this.canvas.setAttribute('height', `${HEIGHT}`);
 
-    this.gl = this.canvas.getContext('webgl');
+    // `alpha: false` asks WebGL to use a backbuffer with no alpha (RGB only).
+    this.gl = this.canvas.getContext('webgl', { alpha: false });
 
     // Only continue if WebGL is available and working
     if (this.gl === null) {
@@ -70,8 +81,14 @@ export class AppComponent {
       return;
     }
 
+    this.instancingExt = this.gl.getExtension('ANGLE_instanced_arrays');
+    if (!this.instancingExt) {
+      return alert('need ANGLE_instanced_arrays');
+    }
+
     TEXTURE_PROGRAM.init(this.gl);
     STANDARD_PROGRAM.init(this.gl);
+    INSTANCED_PROGRAM.init(this.gl);
 
     this.camera = new Camera();
     this.loadStack();
@@ -115,6 +132,9 @@ export class AppComponent {
     this.standardRenderables.forEach((renderable) => {
       renderable.update(elapsedMs);
     });
+    this.cubeMeshRenderables.forEach((renderable) => {
+      renderable.update(elapsedMs);
+    })
 
     if (CONTROLS.isKeyDown(Key.C)) {
       this.colorIntensityLowerBound -= COLOR_INTENSITY_DELTA;
@@ -182,10 +202,20 @@ export class AppComponent {
   private render() {
     const gl = this.gl;
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
-    gl.clearDepth(1.0);                 // Clear everything
-    gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-    gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+
+    // Allow semi-transparent rendering & blending.
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    // Enable depth testing
+    gl.enable(gl.DEPTH_TEST);
+    // Near things obscure far things      
+    gl.depthFunc(gl.LEQUAL);
+    // Don't draw back facing triangles.
+    gl.enable(gl.CULL_FACE);
+    // Clear to black, fully opaque
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    // Clear everything
+    gl.clearDepth(1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const projectionMatrix = this.getProjectionMatrix();
@@ -207,7 +237,7 @@ export class AppComponent {
         TEXTURE_PROGRAM.uniformLocations.viewMatrix,
         false,
         viewMatrix);
-      this.textureRenderables[this.textureIndex].render(gl);
+      this.textureRenderables[this.textureIndex].render(gl, this.instancingExt);
     }
 
     if (USE_IMAGE_MESH || USE_DENSE_MESH) {
@@ -224,8 +254,24 @@ export class AppComponent {
         STANDARD_PROGRAM.uniformLocations.cameraPosition,
         this.camera.cameraPosition);
       if (this.textureIndex < this.standardRenderables.length) {
-        this.standardRenderables[this.textureIndex].render(gl);
+        this.standardRenderables[this.textureIndex]
+          .render(gl, this.instancingExt);
       }
+    }
+
+    if (USE_SEMI_TRANSPARENT_MESH) {
+      gl.useProgram(INSTANCED_PROGRAM.program);
+      gl.uniformMatrix4fv(
+        INSTANCED_PROGRAM.uniformLocations.projectionMatrix,
+        false,
+        projectionMatrix);
+      gl.uniformMatrix4fv(
+        INSTANCED_PROGRAM.uniformLocations.viewMatrix,
+        false,
+        viewMatrix);
+      this.cubeMeshRenderables.forEach((renderable) => {
+        renderable.render(gl, this.instancingExt);
+      });
     }
   }
 
