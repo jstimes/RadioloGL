@@ -13,7 +13,7 @@ import { CubeMeshRenderable } from './cube_mesh_renderable';
 import { INSTANCED_PROGRAM } from './instanced_program';
 
 /** Use only 2 slices of the stack for faster processing when testing. */
-const IS_TESTING = true;
+const IS_TESTING = false;
 
 /** Whether the plain images & contrast should be rendered. */
 const RENDER_IMAGES = false;
@@ -23,12 +23,12 @@ const RENDER_IMAGES = false;
  */
 const USE_IMAGE_MESH = false;
 /** Whether to generate and render an opaque 3D mesh from the stack. */
-const USE_DENSE_MESH = false;
+const USE_DENSE_MESH = true;
 /** 
  * Whether to generate and render a semi-transparent mesh from the stack
  * where each voxel's transparency is based on the sampled color intensity.
  */
-const USE_SEMI_TRANSPARENT_MESH = true;
+const USE_SEMI_TRANSPARENT_MESH = false;
 
 const HEIGHT = 600;
 const WIDTH = 800;
@@ -60,7 +60,7 @@ export class AppComponent {
   private cubeMeshRenderables: CubeMeshRenderable[] = [];
 
   private imageProcessParams = {
-    sampleRate: 2,
+    sampleRate: 4,
     pixelIntensityThreshold: .85,
   };
 
@@ -109,9 +109,9 @@ export class AppComponent {
         this.standardRenderables.push(mesh);
       });
     } else if (USE_DENSE_MESH) {
-      const mesh = await getDenseMeshFromStack(
+      const meshRenderables = await getDenseMeshFromStack(
         this.gl, stackImagePaths, this.imageProcessParams);
-      this.standardRenderables.push(mesh);
+      this.standardRenderables.push(...meshRenderables);
     } else if (USE_SEMI_TRANSPARENT_MESH) {
       const renderables = await getSemiTransparentMeshFromStack(
         this.gl, stackImagePaths, this.imageProcessParams);
@@ -251,8 +251,12 @@ export class AppComponent {
       gl.uniform3fv(
         STANDARD_PROGRAM.uniformLocations.cameraPosition,
         this.camera.cameraPosition);
-      if (this.textureIndex < this.standardRenderables.length) {
+      if (USE_IMAGE_MESH && this.textureIndex < this.standardRenderables.length) {
         this.standardRenderables[this.textureIndex].render(gl);
+      } else if (USE_DENSE_MESH) {
+        for (const renderable of this.standardRenderables) {
+          renderable.render(gl);
+        }
       }
     }
 

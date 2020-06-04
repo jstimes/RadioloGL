@@ -31,21 +31,21 @@ export interface ProcessParams {
 export async function getDenseMeshFromStack(
     gl: WebGLRenderingContext,
     stackImagePaths: string[],
-    params: ProcessParams): Promise<StandardRenderable> {
+    params: ProcessParams): Promise<StandardRenderable[]> {
 
     const { sampleRate, pixelIntensityThreshold } = params;
     const volume = await getVolume(stackImagePaths, params);
 
     console.log("Processed images, generating mesh points...");
 
-    const triangles = [];
+    const renderables: StandardRenderable[] = [];
     const samplesWidth = volume.z[0].y[0].x.length;
     const samplesHeight = volume.z[0].y.length;
     const imageWidth = samplesWidth * sampleRate;
     const imageHeight = samplesHeight * sampleRate;
 
     const stackSize = volume.z.length;
-    const zOffset = 1;
+    const zOffset = .5;
     const toGlPt = (volumeIndex: vec3): vec3 => {
         return makeVec(
             volumeIndex[0] * sampleRate * (2 / imageWidth) - 1,
@@ -53,6 +53,7 @@ export async function getDenseMeshFromStack(
             volumeIndex[2] * zOffset * (2 / stackSize));
     };
     for (let z = 1; z < stackSize; z++) {
+        const triangles = [];
         for (let y = 1; y < samplesHeight; y++) {
             for (let x = 1; x < samplesWidth; x++) {
                 const rightTopFront = makeVec(x, y, z);
@@ -105,14 +106,14 @@ export async function getDenseMeshFromStack(
                 });
             }
         }
+        const renderable = new StandardRenderable();
+        renderable.addTriangles(triangles);
+        renderable.initBuffers(gl);
+        renderables.push(renderable);
     }
     console.log("Generated mesh points, creating buffers...");
 
-    const renderable = new StandardRenderable();
-    renderable.addTriangles(triangles);
-    renderable.initBuffers(gl);
-
-    return renderable;
+    return renderables;
 }
 
 /** 
