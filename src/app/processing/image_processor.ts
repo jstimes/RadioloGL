@@ -1,6 +1,6 @@
 import { vec3, vec4, mat4 } from 'src/app/gl-matrix.js';
 import { TextureRenderable } from 'src/app/texture_renderable';
-import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares } from 'src/app/math_utils';
+import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares, getCubeFacesFromVertices } from 'src/app/math_utils';
 import { StandardRenderable } from 'src/app/standard_renderable';
 import { Volume, Slice, Row } from 'src/app/processing/volume';
 
@@ -38,8 +38,11 @@ export async function getDenseMeshFromStack(
     console.log("Processed images, generating mesh points...");
 
     const triangles = [];
-    const imageWidth = volume.z[0].y[0].x.length;
-    const imageHeight = volume.z[0].y.length;
+    const samplesWidth = volume.z[0].y[0].x.length;
+    const samplesHeight = volume.z[0].y.length;
+    const imageWidth = samplesWidth * sampleRate;
+    const imageHeight = samplesHeight * sampleRate;
+
     const stackSize = volume.z.length;
     const zOffset = 1;
     const toGlPt = (volumeIndex: vec3): vec3 => {
@@ -49,47 +52,51 @@ export async function getDenseMeshFromStack(
             volumeIndex[2] * zOffset * (2 / stackSize));
     };
     for (let z = 1; z < stackSize; z++) {
-        for (let y = 1; y < imageHeight; y++) {
-            for (let x = 1; x < imageWidth; x++) {
-                const volumePtRightTopFront = makeVec(x, y, z);
-                const volumePtLeftTopFront = makeVec(x - 1, y, z);
-                const volumePtLeftDownFront = makeVec(x - 1, y - 1, z);
-                const volumePtRightDownFront = makeVec(x, y - 1, z);
-                const volumePtLeftTopBack = makeVec(x - 1, y, z - 1);
-                const volumePtLeftDownBack = makeVec(x - 1, y - 1, z - 1);
-                const volumePtRightDownBack = makeVec(x, y - 1, z - 1);
-                const volumePtRightTopBack = makeVec(x, y, z - 1);
+        for (let y = 1; y < samplesHeight; y++) {
+            for (let x = 1; x < samplesWidth; x++) {
+                const rightTopFront = makeVec(x, y, z);
+                const leftTopFront = makeVec(x - 1, y, z);
+                const leftBottomFront = makeVec(x - 1, y - 1, z);
+                const rightBottomFront = makeVec(x, y - 1, z);
+                const leftTopBack = makeVec(x - 1, y, z - 1);
+                const leftBottomBack = makeVec(x - 1, y - 1, z - 1);
+                const rightBottomBack = makeVec(x, y - 1, z - 1);
+                const rightTopBack = makeVec(x, y, z - 1);
 
                 const allCubePts = [
-                    volumePtLeftTopBack,
-                    volumePtLeftDownBack,
-                    volumePtRightDownBack,
-                    volumePtRightTopBack,
-                    volumePtLeftTopFront,
-                    volumePtLeftDownFront,
-                    volumePtRightDownFront,
-                    volumePtRightTopFront,
+                    leftTopBack,
+                    leftBottomBack,
+                    rightBottomBack,
+                    rightTopBack,
+                    leftTopFront,
+                    leftBottomFront,
+                    rightBottomFront,
+                    rightTopFront,
                 ];
                 const shouldCubeBeInMesh =
                     volume.arePointsAboveThreshold(
                         allCubePts, pixelIntensityThreshold);
                 if (shouldCubeBeInMesh) {
-                    const glPts = allCubePts.map(toGlPt);
-                    const top = new Square(
-                        { a: glPts[0], b: glPts[4], c: glPts[7], d: glPts[3] });
-                    const bottom = new Square(
-                        { a: glPts[5], b: glPts[1], c: glPts[2], d: glPts[6] });
-                    const back = new Square(
-                        { a: glPts[3], b: glPts[2], c: glPts[1], d: glPts[0] });
-                    const left = new Square(
-                        { a: glPts[0], b: glPts[1], c: glPts[5], d: glPts[4] });
-                    const front = new Square(
-                        { a: glPts[4], b: glPts[5], c: glPts[6], d: glPts[7] });
-                    const right = new Square(
-                        { a: glPts[7], b: glPts[6], c: glPts[2], d: glPts[3] });
+                    const cubeFaces = getCubeFacesFromVertices({
+                        leftTopFront,
+                        leftBottomFront,
+                        rightBottomFront,
+                        rightTopFront,
+                        rightTopBack,
+                        rightBottomBack,
+                        leftBottomBack,
+                        leftTopBack,
+                    });
 
                     const squares =
-                        [top, bottom, back, left, right, front, back];
+                        cubeFaces.map((square) => {
+                            return new Square({
+                                a: toGlPt(square.a),
+                                b: toGlPt(square.b),
+                                c: toGlPt(square.c),
+                                d: toGlPt(square.d),
+                            });
+                        });
                     getTrianglesFromSquares(squares).forEach(tri => {
                         triangles.push(tri);
                     });

@@ -12,12 +12,13 @@ const VERTEX_SHADER_SOURCE = `
   uniform mat4 uProjectionMatrix;
 
   varying vec3 vNormal;
+  varying vec4 vPosition;
 
   void main() {
-    gl_Position = 
-        uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
-
     vNormal = (uNormalMatrix * vec4(aVertexNormal, 1.0)).xyz;
+    vPosition = 
+        uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;
+    gl_Position = vPosition;
   }
 `;
 
@@ -25,32 +26,36 @@ const FRAGMENT_SHADER_SOURCE = `
   precision mediump float;
 
   varying vec3 vNormal;
+  varying vec4 vPosition;
 
+  uniform vec3 uCameraPos;
   uniform vec4 uColor;
 
   vec3 calculate_directional_light(
       vec3 color, 
       vec3 normal) {
-    vec3 lightDirection = vec3(-1, -1, -1);
-    vec3 surfaceToLight = normalize(-lightDirection);
+    vec4 lightColor = vec4(1, 1, 1, 1);
+    float shininess = 10.0;
+    float specular = 1.0;
+
+    vec3 surfaceToLight = normalize(uCameraPos - vPosition.xyz);
     vec3 ambient = vec3(.2);
 
     float directionalDiffuseAmount = max(dot(normal, surfaceToLight), 0.0);
     vec3 directionalDiffuse = directionalDiffuseAmount * color;
-    return ambient + directionalDiffuse;
     
-    // vec3 directionalSpecularReflectDir = reflect(-surfaceToLight, normal);
-    // float directionalSpecularAmount = pow(max(dot(surfaceToCamera, directionalSpecularReflectDir), 0.0), material.shininess);
-    // vec4 directionalSpecular = directionalSpecularAmount * directionalLight.lightColor.specular * material.specular;
+    vec3 surfaceToCamera = uCameraPos - vPosition.xyz;
+    vec3 directionalSpecularReflectDir = reflect(surfaceToLight, normal);
+    float directionalSpecularAmount = 
+        pow(max(dot(surfaceToCamera, directionalSpecularReflectDir), 0.0), shininess);
+    vec4 directionalSpecular = directionalSpecularAmount * lightColor * specular;
 
-    // return directionalAmbient + directionalDiffuse + directionalSpecular;
+    return ambient + directionalDiffuse;// + directionalSpecular.xyz;
   }
 
   void main() {
-    // vec3 rgb = calculate_directional_light(uColor.rgb, vNormal);
-    // gl_FragColor = vec4(rgb, 1.0);
-
-    gl_FragColor = uColor;
+    vec3 rgb = calculate_directional_light(uColor.rgb, vNormal);
+    gl_FragColor = vec4(rgb, 1.0);
   }
 `;
 
@@ -64,6 +69,7 @@ interface UniformLocations {
   modelMatrix: WebGLUniformLocation;
   normalMatrix: WebGLUniformLocation;
   color: WebGLUniformLocation;
+  cameraPosition: WebGLUniformLocation;
 }
 class StandardProgram {
 
@@ -86,6 +92,7 @@ class StandardProgram {
       modelMatrix: gl.getUniformLocation(shaderProgram, 'uModelMatrix'),
       normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
       color: gl.getUniformLocation(shaderProgram, 'uColor'),
+      cameraPosition: gl.getUniformLocation(shaderProgram, 'uCameraPos'),
     };
   }
 }

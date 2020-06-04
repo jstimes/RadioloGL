@@ -128,7 +128,7 @@ export class StandardRenderable {
             false,
             normalMatrix);
 
-        gl.uniform4fv(STANDARD_PROGRAM.uniformLocations.color, [1, 0, 0, 1]);
+        gl.uniform4fv(STANDARD_PROGRAM.uniformLocations.color, [1, 1, 1, 1]);
 
         {
             const vertexCount = this.getPositions().length / 3;

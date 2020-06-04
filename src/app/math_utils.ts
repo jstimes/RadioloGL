@@ -38,6 +38,56 @@ export function sign(num: number) {
     return num > 0.0 ? 1.0 : -1.0;
 }
 
+/** Given the eight vertices of a cube, returns the 6 faces. */
+export function getCubeFacesFromVertices(vertices: {
+    leftTopFront: vec3;
+    leftBottomFront: vec3;
+    rightBottomFront: vec3;
+    rightTopFront: vec3;
+    rightTopBack: vec3;
+    rightBottomBack: vec3;
+    leftBottomBack: vec3;
+    leftTopBack: vec3;
+}): Square[] {
+    const frontFace = new Square({
+        a: vertices.leftTopFront,
+        b: vertices.leftBottomFront,
+        c: vertices.rightBottomFront,
+        d: vertices.rightTopFront,
+    });
+    const backFace = new Square({
+        a: vertices.rightTopBack,
+        b: vertices.rightBottomBack,
+        c: vertices.leftBottomBack,
+        d: vertices.leftTopBack,
+    });
+    const leftFace = new Square({
+        a: vertices.leftTopBack,
+        b: vertices.leftBottomBack,
+        c: vertices.leftBottomFront,
+        d: vertices.leftTopFront,
+    });
+    const rightFace = new Square({
+        a: vertices.rightTopFront,
+        b: vertices.rightBottomFront,
+        c: vertices.rightBottomBack,
+        d: vertices.rightTopBack,
+    });
+    const bottomFace = new Square({
+        a: vertices.leftBottomFront,
+        b: vertices.leftBottomBack,
+        c: vertices.rightBottomBack,
+        d: vertices.rightBottomFront,
+    });
+    const topFace = new Square({
+        a: vertices.leftTopBack,
+        b: vertices.leftTopFront,
+        c: vertices.rightTopFront,
+        d: vertices.rightTopBack,
+    });
+    return [frontFace, backFace, leftFace, rightFace, bottomFace, topFace];
+}
+
 /** Returns the triangles that make up a list of squares (2 per square). */
 export function getTrianglesFromSquares(squares: Square[]): Triangle[] {
     const triangles: Triangle[] = [];
@@ -50,7 +100,11 @@ export function getTrianglesFromSquares(squares: Square[]): Triangle[] {
     return triangles;
 }
 
-/** Mutable representation of a triangle (three points). */
+/** 
+ * Mutable representation of a triangle (three points). 
+ * 
+ * Assumes a, b, c are in counter-clockwise order.
+ */
 export class Triangle {
     constructor(
         public a: vec3,
@@ -89,7 +143,11 @@ export class Triangle {
     }
 }
 
-/** Mutable representation of a square (four points). */
+/** 
+ * Mutable representation of a square (four points).
+ * 
+ * Assumes a, b, c are in counter-clockwise order.
+ */
 export class Square {
     // Note that while the reference is readonly, the values are not...
     readonly a: vec3;

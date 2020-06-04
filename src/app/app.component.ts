@@ -13,6 +13,16 @@ import { getDenseMeshFromStack, getMeshFromImage } from 'src/app/processing/imag
 /** Use only 2 slices of the stack for faster processing when testing. */
 const IS_TESTING = true;
 
+/** Whether the plain images & contrast should be rendered. */
+const RENDER_IMAGES = false;
+/** 
+ * Whether an image mesh should be generated and rendered for each stack slice.
+ * Mainly just for verifying image processing behavior.
+ */
+const USE_IMAGE_MESH = false;
+/** Whether to generate and render a 3D mesh from the stack. */
+const USE_DENSE_MESH = true;
+
 const HEIGHT = 800;
 const WIDTH = 1200;
 const COLOR_INTENSITY_DELTA = .005;
@@ -72,24 +82,22 @@ export class AppComponent {
   private async loadStack(): Promise<void> {
     const stackImagePaths = this.getStackImagePaths();
     this.numTextures = stackImagePaths.length;
-    const useImageMesh = false;
-    const useDenseMesh = true;
 
     const meshPromises: Promise<StandardRenderable>[] = [];
     stackImagePaths.forEach((imagePath: string) => {
       this.textureRenderables.push(
         new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
-      if (useImageMesh) {
+      if (USE_IMAGE_MESH) {
         meshPromises.push(getMeshFromImage(
           this.gl, imagePath, this.imageProcessParams));
       }
     });
-    if (useImageMesh) {
+    if (USE_IMAGE_MESH) {
       const meshes = await Promise.all(meshPromises);
       meshes.forEach((mesh) => {
         this.standardRenderables.push(mesh);
       });
-    } else if (useDenseMesh) {
+    } else if (USE_DENSE_MESH) {
       const mesh = await getDenseMeshFromStack(
         this.gl, stackImagePaths, this.imageProcessParams);
       this.standardRenderables.push(mesh);
@@ -183,34 +191,41 @@ export class AppComponent {
     const projectionMatrix = this.getProjectionMatrix();
     const viewMatrix = this.camera.getViewMatrix();
 
-    gl.useProgram(TEXTURE_PROGRAM.program);
-    gl.uniform1f(
-      TEXTURE_PROGRAM.uniformLocations.colorIntensityLowerBound,
-      this.colorIntensityLowerBound);
-    gl.uniform1f(
-      TEXTURE_PROGRAM.uniformLocations.colorIntensityUpperBound,
-      this.colorIntensityUpperBound);
-    gl.uniformMatrix4fv(
-      TEXTURE_PROGRAM.uniformLocations.projectionMatrix,
-      false,
-      projectionMatrix);
-    gl.uniformMatrix4fv(
-      TEXTURE_PROGRAM.uniformLocations.viewMatrix,
-      false,
-      viewMatrix);
-    this.textureRenderables[this.textureIndex].render(gl);
+    if (RENDER_IMAGES) {
+      gl.useProgram(TEXTURE_PROGRAM.program);
+      gl.uniform1f(
+        TEXTURE_PROGRAM.uniformLocations.colorIntensityLowerBound,
+        this.colorIntensityLowerBound);
+      gl.uniform1f(
+        TEXTURE_PROGRAM.uniformLocations.colorIntensityUpperBound,
+        this.colorIntensityUpperBound);
+      gl.uniformMatrix4fv(
+        TEXTURE_PROGRAM.uniformLocations.projectionMatrix,
+        false,
+        projectionMatrix);
+      gl.uniformMatrix4fv(
+        TEXTURE_PROGRAM.uniformLocations.viewMatrix,
+        false,
+        viewMatrix);
+      this.textureRenderables[this.textureIndex].render(gl);
+    }
 
-    gl.useProgram(STANDARD_PROGRAM.program);
-    gl.uniformMatrix4fv(
-      STANDARD_PROGRAM.uniformLocations.projectionMatrix,
-      false,
-      projectionMatrix);
-    gl.uniformMatrix4fv(
-      STANDARD_PROGRAM.uniformLocations.viewMatrix,
-      false,
-      viewMatrix);
-    if (this.textureIndex < this.standardRenderables.length) {
-      this.standardRenderables[this.textureIndex].render(gl);
+    if (USE_IMAGE_MESH || USE_DENSE_MESH) {
+      gl.useProgram(STANDARD_PROGRAM.program);
+      gl.uniformMatrix4fv(
+        STANDARD_PROGRAM.uniformLocations.projectionMatrix,
+        false,
+        projectionMatrix);
+      gl.uniformMatrix4fv(
+        STANDARD_PROGRAM.uniformLocations.viewMatrix,
+        false,
+        viewMatrix);
+      gl.uniform3fv(
+        STANDARD_PROGRAM.uniformLocations.cameraPosition,
+        this.camera.cameraPosition);
+      if (this.textureIndex < this.standardRenderables.length) {
+        this.standardRenderables[this.textureIndex].render(gl);
+      }
     }
   }
 
