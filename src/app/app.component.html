@@ -1,29 +1,58 @@
-<canvas id='canvas' style="background: red;"></canvas>
-<div class='overlay'>
-    <div>
-        Slice:
-        <span>{{getSliceIndexUi()}}</span>
+<div class='app'>
+    <div class='title'>RadioloGL - Visualizing Lung CT Scans with Graphics</div>
+
+    <div class='tabs'>
+        <div class='tab'
+             [ngClass]="{'selected': mode === Mode.IMAGE_ANALYSIS}"
+             (click)="setMode(Mode.IMAGE_ANALYSIS)">
+            Image Analysis
+        </div>
+        <div class='tab'
+             [ngClass]="{'selected': mode === Mode.VOLUMETRIC_RECONSTRUCTION}"
+             (click)="setMode(Mode.VOLUMETRIC_RECONSTRUCTION)">
+            Volumetric Reconstruction
+        </div>
+        <div class='tab'
+             [ngClass]="{'selected': mode === Mode.SEMI_TRANSPARENT_RENCONSTRUCTION}"
+             (click)="setMode(Mode.SEMI_TRANSPARENT_RENCONSTRUCTION)">
+            Semi-transparent Reconstruction (experimental)
+        </div>
     </div>
-    <div>
-        Contrast lower:
-        <span>{{getColorIntensityLowerBoundUi()}}</span>
+
+    <canvas id='canvas'
+            style="background: red;"></canvas>
+    <div class='overlay'>
+        <div>
+            Slice:
+            <span>{{getSliceIndexUi()}}</span>
+        </div>
+        <div>
+            Contrast lower:
+            <span>{{getColorIntensityLowerBoundUi()}}</span>
+        </div>
+        <div>
+            Contrast upper:
+            <span>{{getColorIntensityUpperBoundUi()}}</span>
+        </div>
     </div>
-    <div>
-        Contrast upper:
-        <span>{{getColorIntensityUpperBoundUi()}}</span>
+
+    <div *ngIf="isLoading"
+         class='loading-indicator'>
+        Loading...
     </div>
-</div>
-<div class='controls'>
-    <div>W - next slice</div>
-    <div>S - previous slice</div>
-    <div>C - decrease contrast lower bound</div>
-    <div>V - increase contrast upper bound</div>
-    <div>B - decrease contrast lower bound</div>
-    <div>N - increase contrast upper bound</div>
-    <div>J - Move camera left</div>
-    <div>L - Move camera right</div>
-    <div>I - Move camera up</div>
-    <div>K - Move camera down</div>
-    <div>O - Zoom camera in</div>
-    <div>P - Zoom camera out</div>
+
+    <div class='controls'>
+        <div>W - next slice</div>
+        <div>S - previous slice</div>
+        <div>C - decrease contrast lower bound</div>
+        <div>V - increase contrast upper bound</div>
+        <div>B - decrease contrast lower bound</div>
+        <div>N - increase contrast upper bound</div>
+        <div>J - Move camera left</div>
+        <div>L - Move camera right</div>
+        <div>I - Move camera up</div>
+        <div>K - Move camera down</div>
+        <div>O - Zoom camera in</div>
+        <div>P - Zoom camera out</div>
+    </div>
 </div>

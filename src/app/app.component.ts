@@ -12,23 +12,27 @@ import { getDenseMeshFromStack, getMeshFromImage, getSemiTransparentMeshFromStac
 import { CubeMeshRenderable } from './cube_mesh_renderable';
 import { INSTANCED_PROGRAM } from './instanced_program';
 
+enum Mode {
+  /** Renders images as textures with configurable min/max pixel intensities.*/
+  IMAGE_ANALYSIS,
+  /** Generates and renders an opaque 3D mesh from the stack. */
+  VOLUMETRIC_RECONSTRUCTION,
+  /** 
+   * Generates and renders a semi-transparent mesh from the stack
+   * where each voxel's transparency is based on the sampled color intensity.
+   */
+  SEMI_TRANSPARENT_RENCONSTRUCTION,
+}
+
 /** Use only 2 slices of the stack for faster processing when testing. */
 const IS_TESTING = false;
 
-/** Whether the plain images & contrast should be rendered. */
-const RENDER_IMAGES = false;
+
 /** 
  * Whether an image mesh should be generated and rendered for each stack slice.
  * Mainly just for verifying image processing behavior.
  */
 const USE_IMAGE_MESH = false;
-/** Whether to generate and render an opaque 3D mesh from the stack. */
-const USE_DENSE_MESH = true;
-/** 
- * Whether to generate and render a semi-transparent mesh from the stack
- * where each voxel's transparency is based on the sampled color intensity.
- */
-const USE_SEMI_TRANSPARENT_MESH = false;
 
 const HEIGHT = 600;
 const WIDTH = 800;
@@ -55,7 +59,6 @@ export class AppComponent {
   private numTextures = 0;
   private textureIndex = 0;
   private textureRenderables: TextureRenderable[] = [];
-
   private standardRenderables: StandardRenderable[] = [];
   private cubeMeshRenderables: CubeMeshRenderable[] = [];
 
@@ -63,6 +66,12 @@ export class AppComponent {
     sampleRate: 4,
     pixelIntensityThreshold: .85,
   };
+
+  /** Exported for template checks. */
+  readonly Mode = Mode;
+  mode: Mode = Mode.IMAGE_ANALYSIS;
+  isLoading: boolean = true;
+
 
   ngOnInit() {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -85,38 +94,51 @@ export class AppComponent {
     INSTANCED_PROGRAM.init(this.gl);
 
     this.camera = new Camera();
-    this.loadStack();
+    this.initMode();
 
     this.gameLoop(0);
   }
 
-  private async loadStack(): Promise<void> {
+  async initMode(): Promise<void> {
+    this.isLoading = true;
     const stackImagePaths = this.getStackImagePaths();
     this.numTextures = stackImagePaths.length;
 
-    const meshPromises: Promise<StandardRenderable>[] = [];
-    stackImagePaths.forEach((imagePath: string) => {
-      this.textureRenderables.push(
-        new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
-      if (USE_IMAGE_MESH) {
-        meshPromises.push(getMeshFromImage(
-          this.gl, imagePath, this.imageProcessParams));
-      }
-    });
-    if (USE_IMAGE_MESH) {
-      const meshes = await Promise.all(meshPromises);
-      meshes.forEach((mesh) => {
-        this.standardRenderables.push(mesh);
-      });
-    } else if (USE_DENSE_MESH) {
-      const meshRenderables = await getDenseMeshFromStack(
-        this.gl, stackImagePaths, this.imageProcessParams);
-      this.standardRenderables.push(...meshRenderables);
-    } else if (USE_SEMI_TRANSPARENT_MESH) {
-      const renderables = await getSemiTransparentMeshFromStack(
-        this.gl, stackImagePaths, this.imageProcessParams);
-      this.cubeMeshRenderables = renderables;
+    switch (this.mode) {
+      case Mode.IMAGE_ANALYSIS:
+        stackImagePaths.forEach(async (imagePath: string) => {
+          this.textureRenderables.push(
+            new TextureRenderable(this.gl, loadTexture(this.gl, imagePath)));
+          if (!USE_IMAGE_MESH) {
+            return;
+          }
+          const meshPromises: Promise<StandardRenderable>[] = [];
+          const imageMesh = await getMeshFromImage(
+            this.gl, imagePath, this.imageProcessParams);
+          this.standardRenderables.push(imageMesh);
+        });
+        break;
+
+      case Mode.VOLUMETRIC_RECONSTRUCTION:
+        if (this.standardRenderables.length > 0) {
+          // Don't regenerate.
+          break;
+        }
+        this.standardRenderables = await getDenseMeshFromStack(
+          this.gl, stackImagePaths, this.imageProcessParams);
+        break;
+
+      case Mode.SEMI_TRANSPARENT_RENCONSTRUCTION:
+        if (this.cubeMeshRenderables.length > 0) {
+          // Don't regenerate.
+          break;
+        }
+        const renderables = await getSemiTransparentMeshFromStack(
+          this.gl, stackImagePaths, this.imageProcessParams);
+        this.cubeMeshRenderables = renderables;
+        break;
     }
+    this.isLoading = false;
   }
 
   private gameLoop(elapsedMs: number): void {
@@ -219,7 +241,9 @@ export class AppComponent {
     const projectionMatrix = this.getProjectionMatrix();
     const viewMatrix = this.camera.getViewMatrix();
 
-    if (RENDER_IMAGES) {
+    if (this.mode === Mode.IMAGE_ANALYSIS) {
+      const projectionMatrix = this.getProjectionMatrix();
+      const viewMatrix = this.camera.getViewMatrix();
       gl.useProgram(TEXTURE_PROGRAM.program);
       gl.uniform1f(
         TEXTURE_PROGRAM.uniformLocations.colorIntensityLowerBound,
@@ -236,31 +260,21 @@ export class AppComponent {
         false,
         viewMatrix);
       this.textureRenderables[this.textureIndex].render(gl);
-    }
-
-    if (USE_IMAGE_MESH || USE_DENSE_MESH) {
-      gl.useProgram(STANDARD_PROGRAM.program);
-      gl.uniformMatrix4fv(
-        STANDARD_PROGRAM.uniformLocations.projectionMatrix,
-        false,
-        projectionMatrix);
-      gl.uniformMatrix4fv(
-        STANDARD_PROGRAM.uniformLocations.viewMatrix,
-        false,
-        viewMatrix);
-      gl.uniform3fv(
-        STANDARD_PROGRAM.uniformLocations.cameraPosition,
-        this.camera.cameraPosition);
-      if (USE_IMAGE_MESH && this.textureIndex < this.standardRenderables.length) {
+      if (USE_IMAGE_MESH
+        && this.textureIndex < this.standardRenderables.length) {
+        this.prepareStandardProgram(gl, projectionMatrix, viewMatrix);
         this.standardRenderables[this.textureIndex].render(gl);
-      } else if (USE_DENSE_MESH) {
-        for (const renderable of this.standardRenderables) {
-          renderable.render(gl);
-        }
       }
     }
 
-    if (USE_SEMI_TRANSPARENT_MESH) {
+    if (this.mode === Mode.VOLUMETRIC_RECONSTRUCTION) {
+      this.prepareStandardProgram(gl, projectionMatrix, viewMatrix);
+      for (const renderable of this.standardRenderables) {
+        renderable.render(gl);
+      }
+    }
+
+    if (this.mode === Mode.SEMI_TRANSPARENT_RENCONSTRUCTION) {
       gl.useProgram(INSTANCED_PROGRAM.program);
       gl.uniformMatrix4fv(
         INSTANCED_PROGRAM.uniformLocations.projectionMatrix,
@@ -270,13 +284,41 @@ export class AppComponent {
         INSTANCED_PROGRAM.uniformLocations.viewMatrix,
         false,
         viewMatrix);
+      // Render in reverse order assuming the furthest away slices are at the
+      // end as WebGL alpha rendering requires furthest objects to be rendered
+      // first.
       for (let i = this.cubeMeshRenderables.length - 1; i >= 0; i--) {
         this.cubeMeshRenderables[i].render(gl);
       }
     }
   }
 
+  private prepareStandardProgram(
+    gl: WebGL2RenderingContext, projectionMatrix: mat4, viewMatrix: mat4): void {
+
+    gl.useProgram(STANDARD_PROGRAM.program);
+    gl.uniformMatrix4fv(
+      STANDARD_PROGRAM.uniformLocations.projectionMatrix,
+      false,
+      projectionMatrix);
+    gl.uniformMatrix4fv(
+      STANDARD_PROGRAM.uniformLocations.viewMatrix,
+      false,
+      viewMatrix);
+    gl.uniform3fv(
+      STANDARD_PROGRAM.uniformLocations.cameraPosition,
+      this.camera.cameraPosition);
+  }
+
   // TEMPLATE METHODS ----------------------------------------------------------
+
+  setMode(mode: Mode): void {
+    if (mode === this.mode) {
+      return;
+    }
+    this.mode = mode;
+    this.initMode();
+  }
 
   getColorIntensityLowerBoundUi(): string {
     return `${this.colorIntensityLowerBound.toPrecision(4)}`;

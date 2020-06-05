@@ -22,3 +22,5 @@ CLEANUP
 
 - Refactor such that shader programs can be constructed fully (without init 
   call).
+
+- Change Controls on UI when mode changes.
