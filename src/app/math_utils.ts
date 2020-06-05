@@ -1,4 +1,4 @@
-import { vec3, vec4, mat4 } from './gl-matrix.js';
+import { vec3, vec4, mat4 } from 'gl-matrix';
 
 export const EPSILON: number = .001;
 

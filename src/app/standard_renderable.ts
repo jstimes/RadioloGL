@@ -1,4 +1,4 @@
-import { mat4, vec3, vec4 } from './gl-matrix.js'
+import { mat4, vec3, vec4 } from 'gl-matrix';
 import { Triangle, makeVec, addVec } from './math_utils';
 import { STANDARD_PROGRAM } from './standard_program';
 import { CONTROLS, Key } from 'src/app/controls';

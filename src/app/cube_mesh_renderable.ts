@@ -1,5 +1,5 @@
 import { Square, makeVec, getPointsArrayFromSquares, getCubeFacesFromVertices } from './math_utils';
-import { mat4, vec3, vec4 } from './gl-matrix.js';
+import { mat4, vec3, vec4 } from 'gl-matrix';
 import { INSTANCED_PROGRAM } from './instanced_program';
 
 const ENTRIES_PER_COLOR = 4;

@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { mat4, vec3, vec4 } from './gl-matrix.js'
+import { mat4, vec3, vec4 } from 'gl-matrix';
 import { loadTexture, initShaderProgram, loadShader } from './gl_utils';
 import { Camera } from 'src/app/camera';
 import { CONTROLS, Key } from 'src/app/controls';

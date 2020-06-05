@@ -1,4 +1,4 @@
-import { vec3, mat4 } from 'src/app/gl-matrix.js';
+import { vec3, mat4 } from 'gl-matrix';
 import { makeVec } from 'src/app/math_utils';
 import { CONTROLS, Key } from 'src/app/controls';
 

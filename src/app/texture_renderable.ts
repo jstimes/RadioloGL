@@ -1,5 +1,4 @@
-
-import { mat4, vec3, vec4 } from './gl-matrix.js'
+import { mat4, vec3, vec4 } from 'gl-matrix';
 import { TEXTURE_PROGRAM } from './texture_program';
 import { CONTROLS, Key } from 'src/app/controls';
 import { loadTexture } from './gl_utils';

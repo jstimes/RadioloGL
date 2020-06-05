@@ -11,6 +11,8 @@ ANALYSIS/RENDERING
 
 - Use tabs for the different modes instead of flags...
 
+- Use lighting in instanced_program
+
 --------------------------------------------------------------------------------
 CLEANUP
 --------------------------------------------------------------------------------

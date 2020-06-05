@@ -1,4 +1,4 @@
-import { vec3, vec4, mat4 } from 'src/app/gl-matrix.js';
+import { vec3, vec4, mat4 } from 'gl-matrix';
 import { Square, Triangle, makeVec, addVec, Point, getTrianglesFromSquares } from 'src/app/math_utils';
 
 // TODO - don't just store a boolean! Fist just store average or interpolation 
